@@ -1,0 +1,8 @@
+<OGRVRTDataSource>
+    <OGRVRTLayer name="visual_data_75pc">
+        <SrcDataSource>./data/visual_data_75pc.csv</SrcDataSource>
+        <GeometryType>wkbPoint</GeometryType>
+        <LayerSRS>WGS84</LayerSRS>
+        <GeometryField encoding="PointFromColumns" x="X" y="Y" z="VALUE"/>
+    </OGRVRTLayer>
+</OGRVRTDataSource>
