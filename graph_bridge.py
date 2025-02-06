@@ -11,10 +11,23 @@ class App:
     def close(self):
         self.driver.close()
 
+    def drop_all_projections(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._drop_all_projections)
+            return result
+
+    @staticmethod
+    def _drop_all_projections(tx):
+        """
+        Take the list of all the graphs and drop them
+        """
+        result = tx.run("""CALL gds.graph.list() YIELD graphName
+                    CALL gds.graph.drop(graphName)
+                    YIELD database
+                    RETURN 'dropped ' + graphName""")
+        return result.values()
+
     def get_edges(self):
-        """
-        evaluate the best route between the source and the target
-        """
         with self.driver.session() as session:
             # write_transaction: to execute a write query on the database
             result = session.write_transaction(self._get_edges)
@@ -30,9 +43,6 @@ class App:
         return result.values()
 
     def add_edge_air_quality(self, coordinate_pair, mean_air_quality):
-        """
-        Add a label to the edges
-        """
         with self.driver.session() as session:
             result = session.write_transaction(self._add_edge_air_quality, coordinate_pair, mean_air_quality)
             return result
