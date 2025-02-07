@@ -23,6 +23,7 @@ def sample_with_window(raster, x_vals, y_vals, window_size=3):
         # Extract the values from the raster using a bilinear interpolation (order=1)
         values = map_coordinates(raster, [y_grid.ravel(), x_grid.ravel()], order=1)
 
+        # Mean value of the window around a single segment point
         sampled_values.append(np.mean(values))
 
     return np.array(sampled_values)
@@ -40,8 +41,10 @@ def world_to_pixel(transform, x, y):
     return pixel_x, pixel_y
 
 
-def sample_raster_along_line(coordinates_pair):
-    raster_path = './output/idw_75pc.tif'
+def sample_raster_along_line(raster_path, coordinate_pair):
+    """
+    Sample a raster along a segment defined by two points in the world coordinates
+    """
     raster = gdal.Open(raster_path)
     if raster is None:
         print("Error: raster not found")
@@ -52,8 +55,8 @@ def sample_raster_along_line(coordinates_pair):
 
     data = band.ReadAsArray(0, 0, raster.RasterXSize, raster.RasterYSize)
 
-    px0, py0 = world_to_pixel(transform, coordinates_pair[0][0], coordinates_pair[0][1])
-    px1, py1 = world_to_pixel(transform, coordinates_pair[1][0], coordinates_pair[1][1])
+    px0, py0 = world_to_pixel(transform, coordinate_pair[0][0], coordinate_pair[0][1])
+    px1, py1 = world_to_pixel(transform, coordinate_pair[1][0], coordinate_pair[1][1])
 
     # Generate the x and y values for the segment
     x_vals = np.linspace(px0, px1)
@@ -62,7 +65,7 @@ def sample_raster_along_line(coordinates_pair):
     air_qualities = sample_with_window(data, x_vals, y_vals, window_size=5)
 
     mean_value = np.mean(air_qualities)
-    print(f"Mean value for segment {coordinates_pair}: {mean_value}")
+    print(f"Mean value for segment {coordinate_pair}: {mean_value}")
     return mean_value
 
 
@@ -81,8 +84,10 @@ def add_options():
     return parser
 
 
-def main(args=None):
-    """Parsing input parameters"""
+def main(raster_path, args=None):
+    """
+    Parsing input parameters and running the script
+    """
     arg_parser = add_options()
     options = arg_parser.parse_args(args=args)
     greeter = App(options.neo4jURL, options.neo4juser, options.neo4jpwd)
@@ -91,7 +96,10 @@ def main(args=None):
     coordinates = greeter.get_edges()
 
     for pair in coordinates:
-        mean_air_quality = sample_raster_along_line(pair)
+        # Find the mean air quality along the segment
+        mean_air_quality = sample_raster_along_line(raster_path, pair)
+
+        # Add the air quality to the edge in the graph
         greeter.add_edge_air_quality(pair, mean_air_quality)
 
     greeter.close()
@@ -100,5 +108,7 @@ def main(args=None):
 if __name__ == '__main__':
     gdal.UseExceptions()
 
-    #main()
-    sample_raster_along_line([(10.9532796, 44.6296937), (10.948936, 44.629214)])
+    file_path = './output/idw_75pc.tif'
+
+    #main(file_path)
+    sample_raster_along_line(file_path, [(10.9532796, 44.6296937), (10.948936, 44.629214)])
