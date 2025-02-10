@@ -24,19 +24,20 @@ def sample_with_window(raster, x_vals, y_vals, window_size=3):
         values = map_coordinates(raster, [y_grid.ravel(), x_grid.ravel()], order=1)
 
         # Mean value of the window around a single segment point
+        # TODO valutare altro oltre a mean
         sampled_values.append(np.mean(values))
 
     return np.array(sampled_values)
 
 
-def world_to_pixel(transform, x, y):
+def world_to_pixel(transform, lon, lat):
     """
     Convert world coordinates to pixel coordinates
     """
     x_origin, pixel_width, _, y_origin, _, pixel_height = transform
 
-    pixel_x = (x - x_origin) / pixel_width
-    pixel_y = (y - y_origin) / pixel_height
+    pixel_x = (lon - x_origin) / pixel_width
+    pixel_y = (lat - y_origin) / pixel_height
 
     return pixel_x, pixel_y
 
@@ -93,14 +94,18 @@ def main(raster_path, args=None):
     greeter = App(options.neo4jURL, options.neo4juser, options.neo4jpwd)
 
     # Get the coordinates of the node pairs from edges in the graph
-    coordinates = greeter.get_edges()
+    edges = greeter.get_edges_endpoints()
 
-    for pair in coordinates:
+    for edge in edges:
+        source_id, destination_id, source_lon, source_lat, destination_lon, destination_lat = edge
+
         # Find the mean air quality along the segment
-        mean_air_quality = sample_raster_along_line(raster_path, pair)
+        mean_air_quality = sample_raster_along_line(raster_path, [(source_lon, source_lat), (destination_lon, destination_lat)])
 
         # Add the air quality to the edge in the graph
-        greeter.add_edge_air_quality(pair, mean_air_quality)
+        result = greeter.add_edge_air_quality([source_id, destination_id], mean_air_quality)
+        if result[0] != mean_air_quality:
+            print(f"Error adding air quality to edge {source_id} -> {destination_id}")
 
     greeter.close()
 
@@ -108,7 +113,9 @@ def main(raster_path, args=None):
 if __name__ == '__main__':
     gdal.UseExceptions()
 
-    file_path = './output/idw_75pc.tif'
+    file_path = './output/new_idw_75pc.tif'
+    main(file_path)
 
-    #main(file_path)
-    sample_raster_along_line(file_path, [(10.9532796, 44.6296937), (10.948936, 44.629214)])
+    #sample_raster_along_line(file_path, [(10.9416767, 44.6304394), (10.9415948, 44.6305366)])
+
+#-n neo4j://localhost:7687 -u neo4j -p password

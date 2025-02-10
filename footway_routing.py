@@ -30,11 +30,12 @@ def coordinates_to_geojson(coordinates):
         json.dump(geojson_data, f)
 
 
-def routing_old_way(greeter, source, target, bool_map=False, file=''):
+def routing_shortest_path(greeter, source, target, weight, bool_map=False, file=''):
     start_time = time.time()
 
-    result = greeter.shortest_path(source, target)
-    path, total_cost, total_danger, total_distance = result#[0]
+    #result = greeter.shortest_path(source, target, weight)
+    result = greeter.single_weight_path(source, target, weight)
+    path, total_distance, total_green_area, avg_pm10 = result#[0]
     #total_cost = result[1]
     #total_danger = result[2]
     #total_distance = result[3]
@@ -58,9 +59,9 @@ def routing_old_way(greeter, source, target, bool_map=False, file=''):
 
     dic['source'] = source
     dic['target'] = target
-    dic['cost'] = total_cost
-    dic['danger'] = total_danger
     dic['distance'] = total_distance
+    dic['green_area'] = total_green_area
+    dic['pm10'] = avg_pm10
 
     greeter.drop_all_projections()
 
@@ -118,20 +119,21 @@ def main(args=None):
     if options.beta > 1 or options.beta < 0:
         print("The beta parameter value is not valid, 0.5 will be used")
         options.beta = 0.5
-    #5567795278 
-    #1314391413   277291137 
-    result = routing_old_way(greeter, options.source, options.dest, True, options.mapName)
 
-    print("execution time:" + str(result['exec_time']))
-    print("number of hops:" + str(result['hops']))
-    print("total cost:" + str(result['cost']))
-    print("average danger:" + str(result['danger']))
-    print("total distance:" + str(result['distance']))
-    
+    for w in ["distance", "green_area", "pm10"]:
+        result = routing_shortest_path(greeter, options.source, options.dest, w, True, options.mapName)
+
+        print("Weight: " + w)
+        print("execution time:" + str(result['exec_time']))
+        print("number of hops:" + str(result['hops']))
+        print("total distance:" + str(result['distance']))
+        print("total green area:" + str(result['green_area']))
+        print("average pm10:" + str(result['pm10']))
+
     return 0
 
 
 if __name__ == "__main__":
     main()
 
-# python routing.py -n neo4j://localhost:7687 -u neo4j -p 123456789 -mn prova -s 1314391413 -d 277291137
+# python routing.py -n neo4j://localhost:7687 -u neo4j -p password -mn prova -s 1314391413 -d 277291137
