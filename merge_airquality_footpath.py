@@ -63,7 +63,7 @@ def sample_raster_along_line(raster_path, coordinate_pair):
     x_vals = np.linspace(px0, px1)
     y_vals = np.linspace(py0, py1)
 
-    air_qualities = sample_with_window(data, x_vals, y_vals, window_size=5)
+    air_qualities = sample_with_window(data, x_vals, y_vals, window_size=3)
 
     mean_value = np.mean(air_qualities)
     print(f"Mean value for segment {coordinate_pair}: {mean_value}")
@@ -96,7 +96,12 @@ def main(raster_path, args=None):
     # Get the coordinates of the node pairs from edges in the graph
     edges = greeter.get_edges_endpoints()
 
+    print(f"Sampling raster along {len(edges)} edges")
+    i = 0
     for edge in edges:
+        i += 1
+        print(f"Edge ({len(edges)}): {i}")
+
         source_id, destination_id, source_lon, source_lat, destination_lon, destination_lat = edge
 
         # Find the mean air quality along the segment

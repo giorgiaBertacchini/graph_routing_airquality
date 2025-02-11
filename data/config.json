@@ -1,0 +1,19 @@
+{
+    "sensor_coords_path": "./data/sensor_coordinates.csv",
+    "measures_path": "./data/sensor_measurements_35pc.csv",
+    "neo4j_URL": "neo4j://localhost:7687",
+    "neo4j_user": "neo4j",
+    "neo4j_pwd": "password",
+    "source_id": 240,
+    "destination_id": 29920,
+    "algorithm": "dijkstra",
+    "weight": "distance",
+    "powers": {
+        "distance_power": 2,
+        "pm10_power": 2
+    },
+    "rations": {
+        "distance_ratio": 0.6,
+        "pm10_ratio": 0.4
+    }
+}
