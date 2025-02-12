@@ -69,7 +69,6 @@ class App:
             result = session.write_transaction(self._dijkstra_path, source, target, weight_property)
             return result
 
-    # TODO to delete
     @staticmethod
     def _dijkstra_path(tx, source, target, weight_property):
         sub_graph_query = ("""
@@ -123,9 +122,11 @@ class App:
         query = """
         MATCH (s:RoadJunction) WHERE ID(s) = $source
         MATCH (t:RoadJunction) WHERE ID(t) = $target
-        CALL gds.alpha.shortestPath.astar.stream('subgraph_routing', {
-            sourceNode: s, 
+        CALL gds.shortestPath.astar.stream('subgraph_routing', {
+            sourceNode: s,
             targetNode: t,
+            latitudeProperty: 'lat',
+            longitudeProperty: 'lon',
             relationshipWeightProperty: $weight_property
         })
         YIELD nodeIds, totalCost, path
@@ -192,7 +193,10 @@ class App:
     def _get_edges_endpoints(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        RETURN id(s) AS source, id(d) AS destination, s.lon AS source_lon, s.lat AS source_lat, d.lon AS destination_lon, d.lat AS destination_lat
+        WHERE id(s) < id(d)
+        RETURN id(s) AS source, id(d) AS destination, 
+        s.lon AS source_lon, s.lat AS source_lat, 
+        d.lon AS destination_lon, d.lat AS destination_lat
         """
         result = tx.run(query)
         return result.values()
@@ -208,11 +212,37 @@ class App:
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE ID(s) = $source and ID(d) = $destination
         SET r.pm10 = $mean_air_quality
-        RETURN r.pm10
+          
+        WITH s, d, r.pm10 AS pm10_value
+        MATCH (d)-[r2:ROUTE]->(s)
+        SET r2.pm10 = pm10_value
+        
+        RETURN pm10_value, r2.pm10
         """
         result = tx.run(query, source=id_pair[0], destination=id_pair[1], mean_air_quality=mean_air_quality)
 
         return result.values()[0]
+
+    def add_edge_air_quality_in_bulk(self, id_pairs, mean_air_quality_values):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_edge_air_quality_in_bulk, id_pairs, mean_air_quality_values)
+            return result
+
+    @staticmethod
+    def _add_edge_air_quality_in_bulk(tx, id_pairs, mean_air_quality_values):
+        query = """
+        UNWIND $pairs AS pair
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE ID(s) = pair.source AND ID(d) = pair.destination
+        SET r.pm10 = pair.mean_air_quality
+        WITH r, d
+        MATCH (d)-[r2:ROUTE]->(s)
+        SET r2.pm10 = r.pm10
+        RETURN r.pm10
+        """
+        result = tx.run(query, pairs=[{'source': pair[0], 'destination': pair[1], 'mean_air_quality': mean_air_quality}
+                                      for pair, mean_air_quality in zip(id_pairs, mean_air_quality_values)])
+        return result.values()
 
     def get_extreme_lon_lat(self):
         with self.driver.session() as session:
@@ -287,23 +317,105 @@ class App:
         CALL {
             MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
             RETURN 
-                min(r.distance) AS min_distance, max(r.distance) AS max_distance, 
-                min(r.pm10) AS min_pm10, max(r.pm10) AS max_pm10
+                max(r.distance) AS max_distance, max(r.effective_pm10) AS max_effective_pm10
         }
-        MATCH ()-[r:ROUTE]->()
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE id(s) < id(d)
         WITH 
-            r, 
-            min_distance, max_distance, min_pm10, max_pm10,
-            (r.distance - min_distance) / (max_distance - min_distance) AS normalized_distance,
-            (r.pm10 - min_pm10) / (max_pm10 - min_pm10) AS normalized_pm10
-        WITH r, 
-            POW(normalized_distance, $distance_power) AS powered_distance,
-            POW(normalized_pm10, $pm10_power) AS powered_pm10
-        WITH r, 
+            r, s, d, max_distance, max_effective_pm10,
+            (r.distance - $min_distance) / (max_distance - $min_distance) AS normalized_distance,
+            (r.effective_pm10 - $min_pm10) / (max_effective_pm10 - $min_pm10) AS normalized_pm10
+        WITH r, s, d, 
+            normalized_distance^$distance_power AS powered_distance,
+            normalized_pm10^$pm10_power AS powered_pm10
+        WITH r, s, d,
             ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10) AS weighted_average
-        SET r.combined_property = weighted_average
+        SET r.combined_weight = weighted_average
+        
+        WITH r, s, d, weighted_average
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.combined_weight = weighted_average
+
         RETURN r, r.combined_property
         """
 
         result = tx.run(query, parameters=parameters)
+        return result.values()
+
+    def get_distances_and_effective_pm10(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._get_distances_and_effective_pm10)
+            return result
+
+    @staticmethod
+    def _get_distances_and_effective_pm10(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        RETURN r.distance AS distance, r.effective_pm10 AS effective_pm10
+        """
+        result = tx.run(query)
+        return result.values()
+
+    # TODO to delete
+    def add_new_prop(self, weight):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_new_prop, weight)
+            return result
+
+    @staticmethod
+    def _add_new_prop(tx, parameters):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE id(s) < id(d)
+        WITH r, s, d,
+            CASE 
+                WHEN r.distance <= $min_distance THEN 0
+                WHEN r.distance >= $max_distance THEN 1
+                ELSE (r.distance - $min_distance) / ($max_distance - $min_distance)
+            END AS normalized_distance,             
+            CASE 
+                WHEN r.effective_pm10 <= $min_pm10 THEN 0
+                WHEN r.effective_pm10 >= $max_pm10 THEN 1
+                ELSE (r.effective_pm10 - $min_pm10) / ($max_pm10 - $min_pm10)
+            END AS normalized_eff_pm10
+        WITH r, s, d, 
+            normalized_distance^$distance_power AS powered_distance,
+            normalized_eff_pm10^$pm10_power AS powered_pm10
+        WITH r, s, d,
+            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10) AS weighted_average
+        SET r.combined_weight = weighted_average
+    
+        WITH r, s, d, weighted_average
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.combined_weight = weighted_average
+    
+        RETURN r, r.combined_property
+        """
+
+        result = tx.run(query, parameters=parameters)
+        return result.values()
+
+    def add_effective_pm10(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_effective_pm10)
+            return result
+
+    @staticmethod
+    def _add_effective_pm10(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE id(s) < id(d)
+        WITH r, s, d,
+            (r.pm10 * 2000) / (r.distance + 200) AS effective_pm10
+        
+        SET r.effective_pm10 = effective_pm10
+    
+        WITH r, s, d, effective_pm10
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.effective_pm10 = effective_pm10
+    
+        RETURN r, r.effective_pm10
+        """
+
+        result = tx.run(query)
         return result.values()

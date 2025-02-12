@@ -1,6 +1,7 @@
 from osgeo import gdal
 import numpy as np
-import argparse
+import json
+import time
 from graph_bridge import App
 from scipy.ndimage import map_coordinates
 
@@ -12,7 +13,9 @@ def sample_with_window(raster, x_vals, y_vals, window_size=3):
     half_w = window_size // 2  # Dimension of the window
 
     sampled_values = []
+
     for x, y in zip(x_vals, y_vals):
+
         # Generate the grid around the point
         x_grid, y_grid = np.meshgrid(
             np.arange(x - half_w, x + half_w + 1),
@@ -26,7 +29,6 @@ def sample_with_window(raster, x_vals, y_vals, window_size=3):
         # Mean value of the window around a single segment point
         # TODO valutare altro oltre a mean
         sampled_values.append(np.mean(values))
-
     return np.array(sampled_values)
 
 
@@ -70,34 +72,17 @@ def sample_raster_along_line(raster_path, coordinate_pair):
     return mean_value
 
 
-def add_options():
-    """Parameters needed to run the script"""
-    parser = argparse.ArgumentParser(description='Insertion of POI in the graph.')
-    parser.add_argument('--neo4jURL', '-n', dest='neo4jURL', type=str,
-                        help="""Insert the address of the local neo4j instance. For example: neo4j://localhost:7687""",
-                        required=True)
-    parser.add_argument('--neo4juser', '-u', dest='neo4juser', type=str,
-                        help="""Insert the name of the user of the local neo4j instance.""",
-                        required=True)
-    parser.add_argument('--neo4jpwd', '-p', dest='neo4jpwd', type=str,
-                        help="""Insert the password of the local neo4j instance.""",
-                        required=True)
-    return parser
-
-
-def main(raster_path, args=None):
-    """
-    Parsing input parameters and running the script
-    """
-    arg_parser = add_options()
-    options = arg_parser.parse_args(args=args)
-    greeter = App(options.neo4jURL, options.neo4juser, options.neo4jpwd)
+def main():
+    greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
     # Get the coordinates of the node pairs from edges in the graph
     edges = greeter.get_edges_endpoints()
+    id_pairs = []
+    mean_air_quality_values = []
 
     print(f"Sampling raster along {len(edges)} edges")
     i = 0
+    start_time = time.time()
     for edge in edges:
         i += 1
         print(f"Edge ({len(edges)}): {i}")
@@ -105,12 +90,27 @@ def main(raster_path, args=None):
         source_id, destination_id, source_lon, source_lat, destination_lon, destination_lat = edge
 
         # Find the mean air quality along the segment
-        mean_air_quality = sample_raster_along_line(raster_path, [(source_lon, source_lat), (destination_lon, destination_lat)])
+        mean_air_quality = sample_raster_along_line(config['raster_path'], [(source_lon, source_lat), (destination_lon, destination_lat)])
 
+        id_pairs.append([source_id, destination_id])
+        mean_air_quality_values.append(mean_air_quality)
+
+        """
         # Add the air quality to the edge in the graph
         result = greeter.add_edge_air_quality([source_id, destination_id], mean_air_quality)
         if result[0] != mean_air_quality:
             print(f"Error adding air quality to edge {source_id} -> {destination_id}")
+
+        print(f"Time: {time.time() - start_time}")"""
+
+    print("Time to sample raster: ", time.time() - start_time)
+
+    start_time = time.time()
+    result = greeter.add_edge_air_quality_in_bulk(id_pairs, mean_air_quality_values)
+    if result == mean_air_quality_values:
+        print("All edges updated successfully")
+
+    print("Time to update all edges:", time.time() - start_time)
 
     greeter.close()
 
@@ -118,8 +118,10 @@ def main(raster_path, args=None):
 if __name__ == '__main__':
     gdal.UseExceptions()
 
-    file_path = './output/new_idw_75pc.tif'
-    main(file_path)
+    with open("data/config.json", "r") as file:
+        config = json.load(file)
+
+    main()
 
     #sample_raster_along_line(file_path, [(10.9416767, 44.6304394), (10.9415948, 44.6305366)])
 

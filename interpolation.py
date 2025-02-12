@@ -68,7 +68,9 @@ def interpolation():
 
 
 if __name__ == "__main__":
-    config = json.loads("./data/config.json")
+    with open("data/config.json", "r") as file:
+        config = json.load(file)
+
     measures_path = config['measures_path'] if 'measures_path' in config else None
     coords_path = config['sensor_coords_path'] if 'sensor_coords_path' in config else None
 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
     validate_file_path(coords_path, 'sensor_coords_path')
 
     try:
-        greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_password'])
+        greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
         preprocessing()
         interpolation()
