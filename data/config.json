@@ -1,21 +1,17 @@
 {
-    "graph_db_name": "sharped",
-    "raster_path": "./output/new_idw_75pc.tif",
-    "sensor_coords_path": "./data/sensor_coordinates.csv",
-    "measures_path": "./data/sensor_measurements_75pc.csv",
-    "neo4j_URL": "neo4j://localhost:7687",
-    "neo4j_user": "neo4j",
-    "neo4j_pwd": "password",
-    "source_id": 2005,
-    "destination_id": 5343,
-    "algorithm": "dijkstra",
-    "weight": "combined_weight",
-    "powers": {
-        "distance_power": 2,
-        "pm10_power": 2
-    },
-    "rations": {
-        "distance_ratio": 0.7,
-        "pm10_ratio": 0.3
-    }
+  "graph_db_name": "smoothed",
+  "sensor_coords_path": "./data/sensor_coordinates.csv",
+  "measures_path": "./data/sensor_measurements_35pc.csv",
+  "neo4j_URL": "neo4j://localhost:7687",
+  "neo4j_user": "neo4j",
+  "neo4j_pwd": "password",
+  "idw": {
+    "power": 4,
+    "radius1": 3000,
+    "radius2": 3000
+  },
+  "air_quality_in_footpath": {
+    "buffer_size": 3
+  },
+  "raster_path": "./output/interpolations/idw_35pc.tif"
 }

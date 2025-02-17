@@ -1,3 +1,4 @@
+import sys
 from neo4j import GraphDatabase
 
 
@@ -7,6 +8,14 @@ class App:
     """
     def __init__(self, uri, user, password):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
+
+        # Check if the connection is successful
+        try:
+            with self.driver:
+                self.driver.verify_connectivity()
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            sys.exit(1)
 
     def close(self):
         self.driver.close()
@@ -42,8 +51,7 @@ class App:
         """
         query = """
         UNWIND %s as p
-        MATCH (n:RoadJunction)
-        WHERE ID(n) = p 
+        MATCH (n:RoadJunction {id: p})
         RETURN collect([n.lon, n.lat])""" % final_path
         result = tx.run(query)
         return result.values()
@@ -81,27 +89,25 @@ class App:
         tx.run(sub_graph_query)
 
         query = """
-        MATCH (s:RoadJunction) WHERE ID(s) = $source
-        MATCH (t:RoadJunction) WHERE ID(t) = $target
+        MATCH (s:RoadJunction {id: $source})
+        MATCH (t:RoadJunction {id: $target})
         CALL gds.shortestPath.dijkstra.stream('subgraph_routing', {
             sourceNode: s, 
             targetNode: t,
             relationshipWeightProperty: $weight_property
         })
-        YIELD nodeIds, totalCost, path
-        WITH [nodeId IN nodeIds] AS nodes_path, totalCost, path as p
-        UNWIND range(0, size(nodes_path) - 2) AS i
-        MATCH (fn:RoadJunction) WHERE ID(fn) = nodes_path[i]
-        MATCH (fn2:RoadJunction) WHERE ID(fn2) = nodes_path[i+1]
-        MATCH (fn)-[r:ROUTE]->(fn2)
+        YIELD index, sourceNode, targetNode, totalCost, nodeIds, path
+        with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
+        unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
+        match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
         """
 
-        result = tx.run(query, source=int(source), target=int(target), weight_property=weight_property)
+        result = tx.run(query, source=source, target=target, weight_property=weight_property)
 
         tx.run("""call gds.graph.drop('subgraph_routing')""")
 
-        return result.values()[0]
+        return result.values()
 
     def a_star_path(self, source, target, weight_property):
         with self.driver.session() as session:
@@ -119,9 +125,9 @@ class App:
 
         tx.run(sub_graph_query)
 
-        query = """
-        MATCH (s:RoadJunction) WHERE ID(s) = $source
-        MATCH (t:RoadJunction) WHERE ID(t) = $target
+        query = """        
+        MATCH (s:RoadJunction {id: $source})
+        MATCH (t:RoadJunction {id: $target})
         CALL gds.shortestPath.astar.stream('subgraph_routing', {
             sourceNode: s,
             targetNode: t,
@@ -129,20 +135,18 @@ class App:
             longitudeProperty: 'lon',
             relationshipWeightProperty: $weight_property
         })
-        YIELD nodeIds, totalCost, path
-        WITH [nodeId IN nodeIds] AS nodes_path, totalCost, path as p
-        UNWIND range(0, size(nodes_path) - 2) AS i
-        MATCH (fn:RoadJunction) WHERE ID(fn) = nodes_path[i]
-        MATCH (fn2:RoadJunction) WHERE ID(fn2) = nodes_path[i+1]
-        MATCH (fn)-[r:ROUTE]->(fn2)
+        YIELD index, sourceNode, targetNode, totalCost, nodeIds, path
+        with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
+        unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
+        match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
         """
 
-        result = tx.run(query, source=int(source), target=int(target), weight_property=weight_property)
+        result = tx.run(query, source=source, target=target, weight_property=weight_property)
 
         tx.run("""call gds.graph.drop('subgraph_routing')""")
 
-        return result.values()[0]
+        return result.values()
 
     def top_k_paths(self, source, target, weight_property, k):
         with self.driver.session() as session:
@@ -161,24 +165,22 @@ class App:
         tx.run(sub_graph_query)
 
         query = """
-        MATCH (s:RoadJunction) WHERE ID(s) = $source
-        MATCH (t:RoadJunction) WHERE ID(t) = $target
+        MATCH (s:RoadJunction {id: $source})
+        MATCH (t:RoadJunction {id: $target})
         CALL gds.shortestPath.yens.stream('subgraph_routing', {
             sourceNode: s, 
             targetNode: t,
             k: $k,
             relationshipWeightProperty: $weight_property
         })
-        YIELD nodeIds, totalCost, path
-        WITH [nodeId IN nodeIds] AS nodes_path, totalCost, path as p
-        UNWIND range(0, size(nodes_path) - 2) AS i
-        MATCH (fn:RoadJunction) WHERE ID(fn) = nodes_path[i]
-        MATCH (fn2:RoadJunction) WHERE ID(fn2) = nodes_path[i+1]
-        MATCH (fn)-[r:ROUTE]->(fn2)
-        RETURN nodes_path, totalCost, sum(r.distance) AS total_distance, sum(r.green_area) AS total_green_area, avg(r.pm10)
+        YIELD index, sourceNode, targetNode, totalCost, nodeIds, path
+        with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
+        unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
+        match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
+        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
         """
 
-        result = tx.run(query, source=int(source), target=int(target), weight_property=weight_property, k=k)
+        result = tx.run(query, source=source, target=target, weight_property=weight_property, k=k)
 
         tx.run("""call gds.graph.drop('subgraph_routing')""")
 
@@ -193,19 +195,21 @@ class App:
     def _get_edges_endpoints(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE id(s) < id(d)
-        RETURN id(s) AS source, id(d) AS destination, 
+        WHERE s.id < d.id
+        RETURN s.id AS source, d.id AS destination, 
         s.lon AS source_lon, s.lat AS source_lat, 
         d.lon AS destination_lon, d.lat AS destination_lat
         """
         result = tx.run(query)
         return result.values()
 
+    # TODO to delete
+    """
     def add_edge_air_quality(self, id_pair, mean_air_quality):
         with self.driver.session() as session:
             result = session.write_transaction(self._add_edge_air_quality, id_pair, mean_air_quality)
             return result
-
+    """
     @staticmethod
     def _add_edge_air_quality(tx, id_pair, mean_air_quality):
         query = """
@@ -233,7 +237,7 @@ class App:
         query = """
         UNWIND $pairs AS pair
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE ID(s) = pair.source AND ID(d) = pair.destination
+        WHERE s.id = pair.source AND d.id = pair.destination
         SET r.pm10 = pair.mean_air_quality
         WITH r, d
         MATCH (d)-[r2:ROUTE]->(s)
@@ -267,7 +271,7 @@ class App:
     def _get_road_junction_nodes(tx):
         query = """
         MATCH (n:RoadJunction)
-        RETURN ID(n) as id, n.lon as lon, n.lat as lat
+        RETURN n.id as id, n.lon as lon, n.lat as lat
         """
         result = tx.run(query)
         return result.values()
@@ -320,7 +324,7 @@ class App:
                 max(r.distance) AS max_distance, max(r.effective_pm10) AS max_effective_pm10
         }
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE id(s) < id(d)
+        WHERE s.id < d.id
         WITH 
             r, s, d, max_distance, max_effective_pm10,
             (r.distance - $min_distance) / (max_distance - $min_distance) AS normalized_distance,
@@ -366,7 +370,7 @@ class App:
     def _add_new_prop(tx, parameters):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE id(s) < id(d)
+        WHERE s.id < d.id
         WITH r, s, d,
             CASE 
                 WHEN r.distance <= $min_distance THEN 0
@@ -404,7 +408,7 @@ class App:
     def _add_effective_pm10(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE id(s) < id(d)
+        WHERE s.id < d.id
         WITH r, s, d,
             (r.pm10 * 2000) / (r.distance + 200) AS effective_pm10
         

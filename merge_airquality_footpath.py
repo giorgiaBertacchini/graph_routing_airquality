@@ -1,16 +1,17 @@
-from osgeo import gdal
-import numpy as np
+import sys
 import json
 import time
+from osgeo import gdal
+import numpy as np
 from graph_bridge import App
 from scipy.ndimage import map_coordinates
 
 
-def sample_with_window(raster, x_vals, y_vals, window_size=3):
+def sample_with_window(raster, x_vals, y_vals, buffer_size=3):
     """
     Extract values from a raster using a window around the segment
     """
-    half_w = window_size // 2  # Dimension of the window
+    half_w = buffer_size // 2  # Dimension of the buffer
 
     sampled_values = []
 
@@ -65,14 +66,15 @@ def sample_raster_along_line(raster_path, coordinate_pair):
     x_vals = np.linspace(px0, px1)
     y_vals = np.linspace(py0, py1)
 
-    air_qualities = sample_with_window(data, x_vals, y_vals, window_size=3)
+    air_qualities = sample_with_window(data, x_vals, y_vals, buffer_size=config['air_quality_in_footpath']['buffer_size'])
 
     mean_value = np.mean(air_qualities)
     print(f"Mean value for segment {coordinate_pair}: {mean_value}")
     return mean_value
 
 
-def main():
+def main(raster_path):
+    gdal.UseExceptions()
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
     # Get the coordinates of the node pairs from edges in the graph
@@ -89,19 +91,12 @@ def main():
 
         source_id, destination_id, source_lon, source_lat, destination_lon, destination_lat = edge
 
+        raster_file = config['raster_path'] if raster_path is None else raster_path
         # Find the mean air quality along the segment
-        mean_air_quality = sample_raster_along_line(config['raster_path'], [(source_lon, source_lat), (destination_lon, destination_lat)])
+        mean_air_quality = sample_raster_along_line(raster_file, [(source_lon, source_lat), (destination_lon, destination_lat)])
 
         id_pairs.append([source_id, destination_id])
         mean_air_quality_values.append(mean_air_quality)
-
-        """
-        # Add the air quality to the edge in the graph
-        result = greeter.add_edge_air_quality([source_id, destination_id], mean_air_quality)
-        if result[0] != mean_air_quality:
-            print(f"Error adding air quality to edge {source_id} -> {destination_id}")
-
-        print(f"Time: {time.time() - start_time}")"""
 
     print("Time to sample raster: ", time.time() - start_time)
 
@@ -116,13 +111,11 @@ def main():
 
 
 if __name__ == '__main__':
-    gdal.UseExceptions()
-
     with open("data/config.json", "r") as file:
         config = json.load(file)
 
-    main()
-
-    #sample_raster_along_line(file_path, [(10.9416767, 44.6304394), (10.9415948, 44.6305366)])
-
-#-n neo4j://localhost:7687 -u neo4j -p password
+    try:
+        main(None)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
