@@ -203,30 +203,6 @@ class App:
         result = tx.run(query)
         return result.values()
 
-    # TODO to delete
-    """
-    def add_edge_air_quality(self, id_pair, mean_air_quality):
-        with self.driver.session() as session:
-            result = session.write_transaction(self._add_edge_air_quality, id_pair, mean_air_quality)
-            return result
-    """
-    @staticmethod
-    def _add_edge_air_quality(tx, id_pair, mean_air_quality):
-        query = """
-        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE ID(s) = $source and ID(d) = $destination
-        SET r.pm10 = $mean_air_quality
-          
-        WITH s, d, r.pm10 AS pm10_value
-        MATCH (d)-[r2:ROUTE]->(s)
-        SET r2.pm10 = pm10_value
-        
-        RETURN pm10_value, r2.pm10
-        """
-        result = tx.run(query, source=id_pair[0], destination=id_pair[1], mean_air_quality=mean_air_quality)
-
-        return result.values()[0]
-
     def add_edge_air_quality_in_bulk(self, id_pairs, mean_air_quality_values):
         with self.driver.session() as session:
             result = session.write_transaction(self._add_edge_air_quality_in_bulk, id_pairs, mean_air_quality_values)

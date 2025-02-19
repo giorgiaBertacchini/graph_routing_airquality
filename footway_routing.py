@@ -4,7 +4,7 @@ import numpy as np
 from graph_bridge import App
 
 
-def coordinates_to_geojson(coordinates, weight, value, total_distance, total_green_area, avg_pm10):
+def coordinates_to_geojson(coordinates, weight, value, total_distance, total_green_area, avg_pm10, index):
     """
     Convert a list of coordinates to a GeoJSON file
     """
@@ -28,7 +28,7 @@ def coordinates_to_geojson(coordinates, weight, value, total_distance, total_gre
     }
 
     # save the GeoJSON file
-    file_name = f"output/routing/path_{weight}_{config['graph_db_name']}.geojson"
+    file_name = f"output/routing/path_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
     with open(file_name, "w") as f:
         json.dump(geojson_data, f)
         print(f"GeoJSON file saved at {file_name}")
@@ -85,35 +85,41 @@ def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, 
 
     greeter.drop_all_projections()
 
+    paths = []
     if algorithm == 'dijkstra':
-        result = greeter.dijkstra_path(source, target, weight)
+        paths = greeter.dijkstra_path(source, target, weight)
     elif algorithm == 'a_star':
-        result = greeter.a_star_path(source, target, weight)
+        paths = greeter.a_star_path(source, target, weight)
     elif algorithm == 'top_k':
         # TODO to test
-        result = greeter.top_k_paths(source, target, weight, k)
-
-    if len(result[0]) == 0:
-        return {'error': 'No path found'}
-
-    path, totalCost, total_distance, total_green_area, avg_pm10 = result[0]
-
-    # Remove duplicates from the path
-    final_path = [path[0]] + [p for prev, p in zip(path, path[1:]) if p != prev]
-
-    if bool_map:
-        # Node coordinates of the path
-        coordinates = greeter.get_coordinates(final_path=final_path)
-        if len(coordinates[0][0]) == 0:
-            print('\nNo result for query')
-        else:
-            # Save the path in a GeoJSON file
-            coordinates_to_geojson(coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10)  # TODO to check
+        paths = greeter.top_k_paths(source, target, weight, k)
 
     greeter.drop_all_projections()
 
-    return {'exec_time': time.time() - start_time, 'hops': len(final_path), 'source': source, 'target': target,
-            'cost': totalCost, 'distance': total_distance, 'green_area': total_green_area, 'pm10': avg_pm10}
+    if len(paths) == 0:
+        return {'error': 'No path found'}
+
+    path_data = [time.time() - start_time]
+
+    for index, r in enumerate(paths):
+        path, totalCost, total_distance, total_green_area, avg_pm10 = r
+
+        # Remove duplicates from the path
+        final_path = [path[0]] + [p for prev, p in zip(path, path[1:]) if p != prev]
+
+        if bool_map:
+            # Node coordinates of the path
+            coordinates = greeter.get_coordinates(final_path=final_path)
+            if len(coordinates[0][0]) == 0:
+                print('\nNo result for query')
+            else:
+                # Save the path in a GeoJSON file
+                coordinates_to_geojson(coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, index)
+
+        path_data.append({'hops': len(final_path), 'source': source, 'target': target, 'cost': totalCost,
+                          'distance': total_distance, 'green_area': total_green_area, 'pm10': avg_pm10})
+
+    return path_data
 
 
 def main():
@@ -127,21 +133,24 @@ def main():
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
 
     result = routing_single_weight_path(
-        greeter, routing_query['source_id'], routing_query['destination_id'], w, routing_query['algorithm'], 2, True)
+        greeter, routing_query['source_id'], routing_query['destination_id'], w, routing_query['algorithm'], routing_query['top_k'], True)
 
-    print("\n|| Weight: " + w + " ||")
-    if 'error' in result:
-        print("No path found")
-        return 1
-    else:
-        print("source: " + str(routing_query['source_id']))
-        print("destination: " + str(routing_query['destination_id']))
-        print("execution time: " + str(result['exec_time']))
-        print("number of hops: " + str(result['hops']))
-        print("total cost: " + str(result['cost']))
-        print("total distance: " + str(result['distance']))
-        print("total green area: " + str(result['green_area']))
-        print("average pm10: " + str(result['pm10']))
+    print("\n-- Routing results --")
+    print("execution time: " + str(result[0]))
+    print("source: " + str(routing_query['source_id']))
+    print("destination: " + str(routing_query['destination_id']))
+
+    for r in result[1:]:
+        print("\n|| Weight: " + w + " ||")
+        if 'error' in r:
+            print("No path found")
+            return 1
+        else:
+            print("number of hops: " + str(r['hops']))
+            print("total cost: " + str(r['cost']))
+            print("total distance: " + str(r['distance']))
+            print("total green area: " + str(r['green_area']))
+            print("average pm10: " + str(r['pm10']))
 
     greeter.close()
     return 0

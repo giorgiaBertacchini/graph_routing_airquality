@@ -1,7 +1,6 @@
 {
-  "graph_db_name": "smoothed",
   "sensor_coords_path": "./data/sensor_coordinates.csv",
-  "measures_path": "./data/sensor_measurements_35pc.csv",
+  "measures_path": "./data/sensor_measurements_75pc.csv",
   "neo4j_URL": "neo4j://localhost:7687",
   "neo4j_user": "neo4j",
   "neo4j_pwd": "password",
@@ -13,5 +12,5 @@
   "air_quality_in_footpath": {
     "buffer_size": 3
   },
-  "raster_path": "./output/interpolations/idw_35pc.tif"
+  "raster_path": "./output/interpolations/idw_75pc.tif"
 }

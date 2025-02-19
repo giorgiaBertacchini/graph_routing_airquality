@@ -1,8 +1,10 @@
 {
+  "path_file_suffix": "sharped",
   "source_id": "281781912",
   "destination_id": "330280734",
-  "algorithm": "top_k",
-  "weight": "effective_pm10",
+  "algorithm": "dijkstra",
+  "top_k": 3,
+  "weight": "distance",
   "combined_weight": {
     "distance": {
       "power": 2,
