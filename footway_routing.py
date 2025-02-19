@@ -77,8 +77,6 @@ def create_multiple_weights_propriety(greeter, combined_weight_config):
     result = greeter.add_combined_property(parameters)
     #res = greeter.add_new_prop(parameters)
 
-    # TODO check result?
-
 
 def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, bool_map=False):
     start_time = time.time()
@@ -91,7 +89,6 @@ def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, 
     elif algorithm == 'a_star':
         paths = greeter.a_star_path(source, target, weight)
     elif algorithm == 'top_k':
-        # TODO to test
         paths = greeter.top_k_paths(source, target, weight, k)
 
     greeter.drop_all_projections()
