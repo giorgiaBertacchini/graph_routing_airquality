@@ -88,3 +88,7 @@ The `weight` parameter can be set to:
 ## Conclusion
 This project is designed to be highly flexible and customizable, allowing it to adapt to any use case or future needs. 
 Key parameters can be easily configured through the `config.json` and `routing_config.json` files.
+
+The use of JSON input also enables easy integration with future modules, such as websites or other UI applications, allowing users to define their path search preferences. 
+Based on these inputs, the script dynamically assigns appropriate weights to the roads and executes Neo4j’s pathfinding algorithm on them.
+ 
