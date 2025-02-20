@@ -270,6 +270,7 @@ class App:
         result = tx.run(query)
         return result.values()
 
+    # TODO delete
     def get_extreme_edge_properties(self):
         with self.driver.session() as session:
             result = session.write_transaction(self._get_extreme_edge_properties)
@@ -280,8 +281,8 @@ class App:
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         RETURN min(r.distance) as min_distance, max(r.distance) as max_distance, 
-        min(r.green_area) as min_green_area, max(r.green_area) as max_green_area, 
-        min(r.pm10) as min_pm10, max(r.pm10) as max_pm10
+        min(r.pm10) as min_pm10, max(r.pm10) as max_pm10,
+        min(r.inverse_green_area) as min_inv_green_area, max(r.inverse_green_area) as max_inv_green_area
         """
         result = tx.run(query)
         return result.values()
@@ -297,19 +298,24 @@ class App:
         CALL {
             MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
             RETURN 
-                max(r.distance) AS max_distance, max(r.effective_pm10) AS max_effective_pm10
+                max(r.distance) AS max_distance, 
+                max(r.effective_pm10) AS max_effective_pm10, 
+                max(r.inverse_green_area) as max_inv_green_area
         }
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
         WITH 
             r, s, d, max_distance, max_effective_pm10,
             (r.distance - $min_distance) / (max_distance - $min_distance) AS normalized_distance,
-            (r.effective_pm10 - $min_pm10) / (max_effective_pm10 - $min_pm10) AS normalized_pm10
+            (r.effective_pm10 - $min_pm10) / (max_effective_pm10 - $min_pm10) AS normalized_pm10,
+            (r.inverse_green_area - $min_inv_green_area) / (max_inv_green_area - $min_inv_green_area) AS normalized_inv_green_area
         WITH r, s, d, 
             normalized_distance^$distance_power AS powered_distance,
-            normalized_pm10^$pm10_power AS powered_pm10
+            normalized_pm10^$pm10_power AS powered_pm10,
+            normalized_inv_green_area^$inv_green_area_power AS powered_inv_green_area
         WITH r, s, d,
-            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10) AS weighted_average
+            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10 + $inv_green_area_ratio * powered_inv_green_area) AS weighted_average
+            
         SET r.combined_weight = weighted_average
         
         WITH r, s, d, weighted_average
@@ -336,57 +342,18 @@ class App:
         result = tx.run(query)
         return result.values()
 
-    # TODO to delete
-    def add_new_prop(self, weight):
+    def add_effective_pm10(self, c1=2000, c2=200):
         with self.driver.session() as session:
-            result = session.write_transaction(self._add_new_prop, weight)
+            result = session.write_transaction(self._add_effective_pm10, c1, c2)
             return result
 
     @staticmethod
-    def _add_new_prop(tx, parameters):
+    def _add_effective_pm10(tx, c1, c2):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
         WITH r, s, d,
-            CASE 
-                WHEN r.distance <= $min_distance THEN 0
-                WHEN r.distance >= $max_distance THEN 1
-                ELSE (r.distance - $min_distance) / ($max_distance - $min_distance)
-            END AS normalized_distance,             
-            CASE 
-                WHEN r.effective_pm10 <= $min_pm10 THEN 0
-                WHEN r.effective_pm10 >= $max_pm10 THEN 1
-                ELSE (r.effective_pm10 - $min_pm10) / ($max_pm10 - $min_pm10)
-            END AS normalized_eff_pm10
-        WITH r, s, d, 
-            normalized_distance^$distance_power AS powered_distance,
-            normalized_eff_pm10^$pm10_power AS powered_pm10
-        WITH r, s, d,
-            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10) AS weighted_average
-        SET r.combined_weight = weighted_average
-    
-        WITH r, s, d, weighted_average
-        MATCH (d)-[r2:ROUTE]->(s)  
-        SET r2.combined_weight = weighted_average
-    
-        RETURN r, r.combined_property
-        """
-
-        result = tx.run(query, parameters=parameters)
-        return result.values()
-
-    def add_effective_pm10(self):
-        with self.driver.session() as session:
-            result = session.write_transaction(self._add_effective_pm10)
-            return result
-
-    @staticmethod
-    def _add_effective_pm10(tx):
-        query = """
-        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE s.id < d.id
-        WITH r, s, d,
-            (r.pm10 * 2000) / (r.distance + 200) AS effective_pm10
+            (r.pm10 * $c1) / (r.distance + $c2) AS effective_pm10
         
         SET r.effective_pm10 = effective_pm10
     
@@ -395,6 +362,56 @@ class App:
         SET r2.effective_pm10 = effective_pm10
     
         RETURN r, r.effective_pm10
+        """
+
+        result = tx.run(query, c1=c1, c2=c2)
+        return result.values()
+
+    def add_inverse_green_area(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_inverse_green_area)
+            return result
+
+    @staticmethod
+    def _add_inverse_green_area(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
+        WITH r, s, d,
+            1 / (r.green_area + 0.0000001) AS inverse_green_area
+        
+        SET r.inverse_green_area = inverse_green_area
+    
+        WITH r, s, d, inverse_green_area
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.inverse_green_area = inverse_green_area
+    
+        RETURN r, r.inverse_green_area
+        """
+
+        result = tx.run(query)
+        return result.values()
+
+    def add_altitude(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_altitude)
+            return result
+
+    @staticmethod
+    def _add_altitude(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
+        WITH r, s, d,
+            abs(r.altitude_diff) AS abs_altitude_diff
+        
+        SET r.abs_altitude_diff = abs_altitude_diff
+    
+        WITH r, s, d, abs_altitude_diff
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.abs_altitude_diff = abs_altitude_diff
+    
+        RETURN r, r.abs_altitude_diff
         """
 
         result = tx.run(query)

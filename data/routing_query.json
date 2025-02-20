@@ -4,19 +4,23 @@
   "destination_id": "330280734",
   "algorithm": "dijkstra",
   "top_k": 3,
-  "weight": "distance",
+  "weight": "combined_weight",
+  "effective_pm10": {
+    "c1": 2000,
+    "c2": 200
+  },
   "combined_weight": {
     "distance": {
       "power": 2,
       "ratio": 0.7
     },
-    "pm10": {
+    "eff_pm10": {
       "power": 2,
       "ratio": 0.3
     },
-    "green_area": {
-      "power": 2,
-      "ratio": 0.5
+    "inv_green_area": {
+      "power": 2.5,
+      "ratio": 0
     }
   }
 }

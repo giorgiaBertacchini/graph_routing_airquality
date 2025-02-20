@@ -60,18 +60,23 @@ def get_edge_props_bounds(greeter):
 
 def create_multiple_weights_propriety(greeter, combined_weight_config):
     # TODO to delete
-    distance_lower_bound, distance_upper_bound, pm10_lower_bound, pm10_upper_bound = get_edge_props_bounds(greeter)
+    #distance_lower_bound, distance_upper_bound, pm10_lower_bound, pm10_upper_bound = get_edge_props_bounds(greeter)
+
+    # TODO test meglio in IQ o senza?
 
     # Create a unique property for each edge with all the weights
     parameters = {
         'distance_power': combined_weight_config['distance']['power'],
-        'pm10_power': combined_weight_config['pm10']['power'],
+        'pm10_power': combined_weight_config['eff_pm10']['power'],
+        'inv_green_area_power': combined_weight_config['inv_green_area']['power'],
         'distance_ratio': combined_weight_config['distance']['ratio'],
-        'pm10_ratio': combined_weight_config['pm10']['ratio'],
-        'min_distance': distance_lower_bound,
-        'max_distance': distance_upper_bound,
-        'min_pm10': pm10_lower_bound,
-        'max_pm10': pm10_upper_bound
+        'pm10_ratio': combined_weight_config['eff_pm10']['ratio'],
+        'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio'],
+        'min_distance': 0, #distance_lower_bound,
+        #'max_distance': distance_upper_bound,  # TODO delete
+        'min_pm10': 0, #pm10_lower_bound,
+        #'max_pm10': pm10_upper_bound,  # TODO delete
+        'min_inv_green_area': 0, #min_inv_green_area,
     }
 
     result = greeter.add_combined_property(parameters)
@@ -124,8 +129,10 @@ def main():
 
     w = routing_query['weight']  # ["distance", "green_area", "pm10", 'combined_property']
 
+    if w == 'combined_weight' or w == 'green_area':
+        greeter.add_inverse_green_area()
     if w == 'combined_weight' or w == 'effective_pm10':
-        greeter.add_effective_pm10()
+        greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
 
