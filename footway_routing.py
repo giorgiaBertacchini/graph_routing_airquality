@@ -77,6 +77,7 @@ def create_multiple_weights_propriety(greeter, combined_weight_config):
         'min_pm10': 0, #pm10_lower_bound,
         #'max_pm10': pm10_upper_bound,  # TODO delete
         'min_inv_green_area': 0, #min_inv_green_area,
+        'min_altitude_diff': 0
     }
 
     result = greeter.add_combined_property(parameters)
@@ -131,6 +132,8 @@ def main():
 
     if w == 'combined_weight' or w == 'green_area':
         greeter.add_inverse_green_area()
+    if w == 'combined_weight' or w == 'altitude':
+        greeter.add_altitude_diff()
     if w == 'combined_weight' or w == 'effective_pm10':
         greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
     if w == 'combined_weight':

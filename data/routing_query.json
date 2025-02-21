@@ -4,7 +4,7 @@
   "destination_id": "330280734",
   "algorithm": "dijkstra",
   "top_k": 3,
-  "weight": "combined_weight",
+  "weight": "altitude",
   "effective_pm10": {
     "c1": 2000,
     "c2": 200
@@ -20,6 +20,10 @@
     },
     "inv_green_area": {
       "power": 2.5,
+      "ratio": 0
+    },
+    "abs_altitude": {
+      "power": 2,
       "ratio": 0
     }
   }

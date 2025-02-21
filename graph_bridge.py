@@ -300,7 +300,8 @@ class App:
             RETURN 
                 max(r.distance) AS max_distance, 
                 max(r.effective_pm10) AS max_effective_pm10, 
-                max(r.inverse_green_area) as max_inv_green_area
+                max(r.inverse_green_area) as max_inv_green_area,
+                max(r.abs_altitude_diff) as max_abs_altitude_diff
         }
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
@@ -308,13 +309,15 @@ class App:
             r, s, d, max_distance, max_effective_pm10,
             (r.distance - $min_distance) / (max_distance - $min_distance) AS normalized_distance,
             (r.effective_pm10 - $min_pm10) / (max_effective_pm10 - $min_pm10) AS normalized_pm10,
-            (r.inverse_green_area - $min_inv_green_area) / (max_inv_green_area - $min_inv_green_area) AS normalized_inv_green_area
+            (r.inverse_green_area - $min_inv_green_area) / (max_inv_green_area - $min_inv_green_area) AS normalized_inv_green_area,
+            (r.abs_altitude_diff - $min_altitude_diff) / (max_abs_altitude_diff - $min_altitude_diff) AS normalized_abs_altitude_diff
         WITH r, s, d, 
             normalized_distance^$distance_power AS powered_distance,
             normalized_pm10^$pm10_power AS powered_pm10,
-            normalized_inv_green_area^$inv_green_area_power AS powered_inv_green_area
+            normalized_inv_green_area^$inv_green_area_power AS powered_inv_green_area,
+            normalized_abs_altitude_diff^$abs_altitude_power AS powered_abs_altitude_diff
         WITH r, s, d,
-            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10 + $inv_green_area_ratio * powered_inv_green_area) AS weighted_average
+            ($distance_ratio * powered_distance + $pm10_ratio * powered_pm10 + $inv_green_area_ratio * powered_inv_green_area + $abs_altitude_ratio * powered_abs_altitude_diff) AS weighted_average
             
         SET r.combined_weight = weighted_average
         
@@ -392,13 +395,13 @@ class App:
         result = tx.run(query)
         return result.values()
 
-    def add_altitude(self):
+    def add_altitude_diff(self):
         with self.driver.session() as session:
-            result = session.write_transaction(self._add_altitude)
+            result = session.write_transaction(self._add_altitude_diff)
             return result
 
     @staticmethod
-    def _add_altitude(tx):
+    def _add_altitude_diff(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
