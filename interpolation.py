@@ -48,7 +48,7 @@ def interpolation(greeter, measures_path, coords_path, power=4, radius1=3000, ra
     y_max += y_buffer
 
     variation = measures_path.split('_')[-1].split('.')[0]
-    destination_path = f"./output/interpolations/idw_{variation}.tif"
+    destination_path = f"./output/interpolations/test_idw_{variation}.tif"
 
     gdal.Grid(destination_path, f"./output/sensors/meas_{variation}.vrt",
               algorithm=f"invdist:power={power}:radius1={radius1}:radius2={radius2}",
@@ -66,7 +66,7 @@ def interpolation(greeter, measures_path, coords_path, power=4, radius1=3000, ra
     return destination_path
 
 
-def main():
+def main(config):
     gdal.UseExceptions()
     measures_path = config['measures_path'] if 'measures_path' in config else None
     coords_path = config['sensor_coords_path'] if 'sensor_coords_path' in config else None
@@ -86,10 +86,10 @@ def main():
 
 if __name__ == "__main__":
     with open("data/config.json", "r") as file:
-        config = json.load(file)
+        config_file = json.load(file)
 
     try:
-        main()
+        main(config_file)
     except Exception as e:
         print(e)
         sys.exit(1)

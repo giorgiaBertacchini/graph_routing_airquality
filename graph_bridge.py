@@ -100,7 +100,8 @@ class App:
         with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
-        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
+        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
+        avg(r.pm10), sum(r.abs_altitude_diff) as total_altitude_diff
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property)
@@ -139,7 +140,8 @@ class App:
         with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
-        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
+        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
+        avg(r.pm10), sum(r.abs_altitude_diff) as total_altitude_diff
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property)
@@ -177,7 +179,8 @@ class App:
         with  [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodes_path, totalCost,path as p
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
-        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, avg(r.pm10)
+        return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
+        avg(r.pm10), sum(r.abs_altitude_diff) as total_altitude_diff
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property, k=k)

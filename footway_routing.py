@@ -4,7 +4,7 @@ import numpy as np
 from graph_bridge import App
 
 
-def coordinates_to_geojson(coordinates, weight, value, total_distance, total_green_area, avg_pm10, index):
+def coordinates_to_geojson(coordinates, weight, value, total_distance, total_green_area, avg_pm10, total_altitude_diff, index):
     """
     Convert a list of coordinates to a GeoJSON file
     """
@@ -18,10 +18,11 @@ def coordinates_to_geojson(coordinates, weight, value, total_distance, total_gre
                     "coordinates": coordinates
                 },
                 "properties": {
-                    "weight": value,
+                    "total_cost": value,
                     "total_distance": total_distance,
                     "total_green_area": total_green_area,
-                    "avg_pm10": avg_pm10
+                    "avg_pm10": avg_pm10,
+                    "total_altitude_diff": total_altitude_diff
                 }
             }
         ]
@@ -105,7 +106,7 @@ def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, 
     path_data = [time.time() - start_time]
 
     for index, r in enumerate(paths):
-        path, totalCost, total_distance, total_green_area, avg_pm10 = r
+        path, totalCost, total_distance, total_green_area, avg_pm10, total_altitude_diff = r
 
         # Remove duplicates from the path
         final_path = [path[0]] + [p for prev, p in zip(path, path[1:]) if p != prev]
@@ -117,10 +118,11 @@ def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, 
                 print('\nNo result for query')
             else:
                 # Save the path in a GeoJSON file
-                coordinates_to_geojson(coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, index)
+                coordinates_to_geojson(coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, total_altitude_diff, index)
 
         path_data.append({'hops': len(final_path), 'source': source, 'target': target, 'cost': totalCost,
-                          'distance': total_distance, 'green_area': total_green_area, 'pm10': avg_pm10})
+                          'distance': total_distance, 'pm10': avg_pm10, 'green_area': total_green_area,
+                          'altitude_diff': total_altitude_diff})
 
     return path_data
 
@@ -128,19 +130,20 @@ def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, 
 def main():
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
-    w = routing_query['weight']  # ["distance", "green_area", "pm10", 'combined_property']
-
-    if w == 'combined_weight' or w == 'green_area':
+    if routing_query['update_graph_properties']:
         greeter.add_inverse_green_area()
-    if w == 'combined_weight' or w == 'altitude':
         greeter.add_altitude_diff()
-    if w == 'combined_weight' or w == 'effective_pm10':
         greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
+
+    w = routing_query['weight']     # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff",
+                                    # "combined_property"
+
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
 
     result = routing_single_weight_path(
-        greeter, routing_query['source_id'], routing_query['destination_id'], w, routing_query['algorithm'], routing_query['top_k'], True)
+        greeter, routing_query['source_id'], routing_query['destination_id'],
+        w, routing_query['algorithm'], routing_query['top_k'], True)
 
     print("\n-- Routing results --")
     print("execution time: " + str(result[0]))
@@ -158,6 +161,7 @@ def main():
             print("total distance: " + str(r['distance']))
             print("total green area: " + str(r['green_area']))
             print("average pm10: " + str(r['pm10']))
+            print("total altitude difference: " + str(r['altitude_diff']))
 
     greeter.close()
     return 0

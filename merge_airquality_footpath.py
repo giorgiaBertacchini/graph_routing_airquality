@@ -45,7 +45,7 @@ def world_to_pixel(transform, lon, lat):
     return pixel_x, pixel_y
 
 
-def sample_raster_along_line(raster_path, coordinate_pair):
+def sample_raster_along_line(config, raster_path, coordinate_pair):
     """
     Sample a raster along a segment defined by two points in the world coordinates
     """
@@ -73,7 +73,7 @@ def sample_raster_along_line(raster_path, coordinate_pair):
     return mean_value
 
 
-def main(raster_path):
+def main(config, raster_path):
     gdal.UseExceptions()
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
@@ -93,7 +93,7 @@ def main(raster_path):
 
         raster_file = config['raster_path'] if raster_path is None else raster_path
         # Find the mean air quality along the segment
-        mean_air_quality = sample_raster_along_line(raster_file, [(source_lon, source_lat), (destination_lon, destination_lat)])
+        mean_air_quality = sample_raster_along_line(config, raster_file, [(source_lon, source_lat), (destination_lon, destination_lat)])
 
         id_pairs.append([source_id, destination_id])
         mean_air_quality_values.append(mean_air_quality)
@@ -112,10 +112,10 @@ def main(raster_path):
 
 if __name__ == '__main__':
     with open("data/config.json", "r") as file:
-        config = json.load(file)
+        config_file = json.load(file)
 
     try:
-        main(None)
+        main(config_file, None)
     except Exception as e:
         print(e)
         sys.exit(1)
