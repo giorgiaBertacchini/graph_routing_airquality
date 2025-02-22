@@ -216,12 +216,12 @@ class App:
         query = """
         UNWIND $pairs AS pair
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        WHERE s.id = pair.source AND d.id = pair.destination
+        WHERE s.id < d.id AND s.id = pair.source AND d.id = pair.destination
         SET r.pm10 = pair.mean_air_quality
-        WITH r, d
+        WITH s, d, pair
         MATCH (d)-[r2:ROUTE]->(s)
-        SET r2.pm10 = r.pm10
-        RETURN r.pm10
+        SET r2.pm10 = pair.mean_air_quality
+        RETURN pair.mean_air_quality
         """
         result = tx.run(query, pairs=[{'source': pair[0], 'destination': pair[1], 'mean_air_quality': mean_air_quality}
                                       for pair, mean_air_quality in zip(id_pairs, mean_air_quality_values)])
@@ -267,7 +267,7 @@ class App:
         RETURN s.id AS source, d.id AS target, 
         s.lon AS source_lon, s.lat AS source_lat, 
             d.lon AS target_lon, d.lat AS target_lat, 
-            r.name AS name, r.highway AS highway,
+            r.name AS name, r.altitude_diff AS altitude,
             r.distance AS distance, r.green_area AS green_area, r.pm10 AS pm10
         """
         result = tx.run(query)
@@ -398,13 +398,13 @@ class App:
         result = tx.run(query)
         return result.values()
 
-    def add_altitude_diff(self):
+    def add_abs_altitude_diff(self):
         with self.driver.session() as session:
-            result = session.write_transaction(self._add_altitude_diff)
+            result = session.write_transaction(self._add_abs_altitude_diff)
             return result
 
     @staticmethod
-    def _add_altitude_diff(tx):
+    def _add_abs_altitude_diff(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id

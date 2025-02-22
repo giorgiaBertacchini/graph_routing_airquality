@@ -1,10 +1,12 @@
 import sys
 import json
 import time
+import os
 from osgeo import gdal
 import numpy as np
 from graph_bridge import App
 from scipy.ndimage import map_coordinates
+from export_to_csv import export_edges_to_csv, export_road_junctions_to_csv
 
 
 def sample_with_window(raster, x_vals, y_vals, buffer_size=3):
@@ -69,11 +71,10 @@ def sample_raster_along_line(config, raster_path, coordinate_pair):
     air_qualities = sample_with_window(data, x_vals, y_vals, buffer_size=config['air_quality_in_footpath']['buffer_size'])
 
     mean_value = np.mean(air_qualities)
-    print(f"Mean value for segment {coordinate_pair}: {mean_value}")
     return mean_value
 
 
-def main(config, raster_path):
+def main(config):
     gdal.UseExceptions()
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
@@ -82,16 +83,14 @@ def main(config, raster_path):
     id_pairs = []
     mean_air_quality_values = []
 
-    print(f"Sampling raster along {len(edges)} edges")
+    print(f"Start sampling raster along {len(edges)} edges (this operation may take a while)...")
     i = 0
     start_time = time.time()
     for edge in edges:
         i += 1
-        print(f"Edge ({len(edges)}): {i}")
-
         source_id, destination_id, source_lon, source_lat, destination_lon, destination_lat = edge
 
-        raster_file = config['raster_path'] if raster_path is None else raster_path
+        raster_file = config['raster_path']
         # Find the mean air quality along the segment
         mean_air_quality = sample_raster_along_line(config, raster_file, [(source_lon, source_lat), (destination_lon, destination_lat)])
 
@@ -100,12 +99,18 @@ def main(config, raster_path):
 
     print("Time to sample raster: ", time.time() - start_time)
 
-    start_time = time.time()
     result = greeter.add_edge_air_quality_in_bulk(id_pairs, mean_air_quality_values)
     if result == mean_air_quality_values:
-        print("All edges updated successfully")
+        print("All air quality values have been added to the graph.")
 
-    print("Time to update all edges:", time.time() - start_time)
+    # Check if road junctions csv file exists
+    if not os.path.exists("output/exported_graph/road_junctions.csv"):
+        export_road_junctions_to_csv(greeter)
+    else:
+        print("Road junctions csv file already exists.")
+
+    # Export the updated edges to a csv file
+    export_edges_to_csv(greeter)
 
     greeter.close()
 
@@ -115,7 +120,7 @@ if __name__ == '__main__':
         config_file = json.load(file)
 
     try:
-        main(config_file, None)
+        main(config_file)
     except Exception as e:
         print(e)
         sys.exit(1)

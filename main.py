@@ -15,8 +15,8 @@ if __name__ == '__main__':
         config_file = json.load(file)
 
     try:
-        raster_path = interpolation_main(config_file)
-        merge_main(config_file, raster_path)
+        interpolation_main(config_file)
+        merge_main(config_file)
     except Exception as e:
         print(e)
         sys.exit(1)

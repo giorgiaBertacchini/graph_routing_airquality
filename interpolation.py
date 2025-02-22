@@ -4,26 +4,16 @@ import os
 import json
 from osgeo import gdal
 from graph_bridge import App
+from export_to_csv import export_pm10_to_csv
 
 
-def validate_file_path(file_path, file_description):
+def validate_file_path(file_path):
     if file_path is None or not os.path.exists(file_path):
         print(f"File {file_path} does not exist, please provide a valid path in the config file.")
         sys.exit(2)
 
 
-def create_csv_for_qgis(measures_path, coords_path):
-    coordinates_df = pd.read_csv(coords_path)
-    measurements_df = pd.read_csv(measures_path)
-
-    merged_df = pd.merge(coordinates_df, measurements_df, on='ID_STATION')
-
-    result_df = merged_df[['LONGITUDE', 'LATITUDE', 'VALUE']]
-    result_df.columns = ['X', 'Y', 'VALUE']
-    result_df.to_csv(f'./output/sensors/data_{measures_path.split("_")[-1]}', index=False)
-
-
-def interpolation(greeter, measures_path, coords_path, power=4, radius1=3000, radius2=3000):
+def interpolation(greeter, measures_path, coords_path, raster_path, power=4, radius1=3000, radius2=3000):
     df = pd.read_csv(coords_path)
 
     # Find min and max of latitude and longitude of the sensor nodes
@@ -48,9 +38,8 @@ def interpolation(greeter, measures_path, coords_path, power=4, radius1=3000, ra
     y_max += y_buffer
 
     variation = measures_path.split('_')[-1].split('.')[0]
-    destination_path = f"./output/interpolations/test_idw_{variation}.tif"
 
-    gdal.Grid(destination_path, f"./output/sensors/meas_{variation}.vrt",
+    gdal.Grid(raster_path, f"./output/sensors/meas_{variation}.vrt",
               algorithm=f"invdist:power={power}:radius1={radius1}:radius2={radius2}",
               outputBounds=[x_min, y_min, x_max, y_max])
 
@@ -63,7 +52,7 @@ def interpolation(greeter, measures_path, coords_path, power=4, radius1=3000, ra
                     algorithm="invdist:power=4:radius1=3000:radius2=3000", outputBounds=[xmin, ymin, xmax, ymax], width=x_resolution, height=y_resolution)
     """
 
-    return destination_path
+    return raster_path
 
 
 def main(config):
@@ -71,13 +60,17 @@ def main(config):
     measures_path = config['measures_path'] if 'measures_path' in config else None
     coords_path = config['sensor_coords_path'] if 'sensor_coords_path' in config else None
 
-    validate_file_path(measures_path, 'measures_path')
-    validate_file_path(coords_path, 'sensor_coords_path')
+    validate_file_path(measures_path)
+    validate_file_path(coords_path)
 
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
-    create_csv_for_qgis(measures_path, coords_path)
-    raster_path = interpolation(greeter, measures_path, coords_path, config['idw']['power'], config['idw']['radius1'], config['idw']['radius2'])
+    export_pm10_to_csv(measures_path, coords_path)
+    raster_path = interpolation(greeter, measures_path, coords_path, config['raster_path'],
+                                config['idw']['power'], config['idw']['radius1'],
+                                config['idw']['radius2'])
+
+    print(f"Raster file created at {raster_path}")
 
     greeter.close()
 

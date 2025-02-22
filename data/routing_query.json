@@ -1,10 +1,11 @@
 {
   "path_file_suffix": "sharped",
+  "update_graph_properties": true,
   "source_id": "281781912",
   "destination_id": "330280734",
   "algorithm": "dijkstra",
   "top_k": 3,
-  "weight": "altitude",
+  "weight": "abs_altitude_diff",
   "effective_pm10": {
     "c1": 2000,
     "c2": 200

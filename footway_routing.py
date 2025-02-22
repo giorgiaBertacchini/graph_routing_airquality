@@ -132,7 +132,7 @@ def main():
 
     if routing_query['update_graph_properties']:
         greeter.add_inverse_green_area()
-        greeter.add_altitude_diff()
+        greeter.add_abs_altitude_diff()
         greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
 
     w = routing_query['weight']     # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff",
