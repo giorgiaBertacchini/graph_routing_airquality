@@ -110,7 +110,7 @@ def main(config):
         print("Road junctions csv file already exists.")
 
     # Export the updated edges to a csv file
-    export_edges_to_csv(greeter)
+    export_edges_to_csv(greeter, config['measures_path'])
 
     greeter.close()
 

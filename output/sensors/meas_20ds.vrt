@@ -1,0 +1,8 @@
+<OGRVRTDataSource>
+    <OGRVRTLayer name="data_20ds">
+        <SrcDataSource>./output/sensors/data_20ds.csv</SrcDataSource>
+        <GeometryType>wkbPoint</GeometryType>
+        <LayerSRS>WGS84</LayerSRS>
+        <GeometryField encoding="PointFromColumns" x="X" y="Y" z="VALUE"/>
+    </OGRVRTLayer>
+</OGRVRTDataSource>

@@ -21,17 +21,19 @@ def export_pm10_to_csv(measures_path, coords_path):
     result_df.columns = ['X', 'Y', 'VALUE']
     result_df.to_csv(f'./output/sensors/data_{measures_path.split("_")[-1]}', index=False)
 
-    print(f"PM10 values exported to ./output/sensors/data_{measures_path.split('_')[-1]} file.")
+    print(f"PM10 values exported to ./output/sensors/data_{measures_path.split('_')[-1]}")
 
 
-def export_edges_to_csv(greeter):
+def export_edges_to_csv(greeter, measures_path):
     """
     Export road edges to csv file with columns: source, target, source_lon, source_lat, target_lon, target_lat,
     name, altitude, distance, green_area, pm10.
     """
     result = greeter.get_road_edges()
 
-    file_path = "output/exported_graph/edges.csv"
+    variation = measures_path.split('_')[-1].split('.')[0]
+
+    file_path = f"output/exported_graph/edges_{variation}.csv"
     with open(file_path, "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["source", "target", "source_lon", "source_lat", "target_lon", "target_lat",
@@ -39,7 +41,7 @@ def export_edges_to_csv(greeter):
         for record in result:
             writer.writerow(list(record))
 
-    print(f"Edges exported to {file_path} file.")
+    print(f"Edges exported to {file_path}")
 
 
 def export_road_junctions_to_csv(greeter):
@@ -55,7 +57,7 @@ def export_road_junctions_to_csv(greeter):
         for record in result:
             writer.writerow(list(record))
 
-    print(f"Road junctions exported to {file_path} file.")
+    print(f"Road junctions exported to {file_path}")
 
 
 if __name__ == "__main__":
