@@ -1,8 +1,8 @@
 {
-  "path_file_suffix": "sharped",
-  "update_graph_properties": true,
-  "source_id": "281781912",
-  "destination_id": "330280734",
+  "path_file_suffix": "smoothed",
+  "update_graph_properties": false,
+  "source_id": "301244414",
+  "destination_id": "2054319700",
   "algorithm": "dijkstra",
   "top_k": 3,
   "weight": "abs_altitude_diff",
@@ -12,20 +12,20 @@
   },
   "combined_weight": {
     "distance": {
-      "power": 2,
-      "ratio": 0.7
+      "power": 1,
+      "ratio": 0.4
     },
     "eff_pm10": {
-      "power": 2,
-      "ratio": 0.3
+      "power": 1,
+      "ratio": 0.4
     },
     "inv_green_area": {
-      "power": 2.5,
-      "ratio": 0
+      "power": 1,
+      "ratio": 0.1
     },
     "abs_altitude": {
-      "power": 2,
-      "ratio": 0
+      "power": 1,
+      "ratio": 0.1
     }
   }
 }

@@ -70,9 +70,11 @@ def create_multiple_weights_propriety(greeter, combined_weight_config):
         'distance_power': combined_weight_config['distance']['power'],
         'pm10_power': combined_weight_config['eff_pm10']['power'],
         'inv_green_area_power': combined_weight_config['inv_green_area']['power'],
+        'abs_altitude_ratio': combined_weight_config['abs_altitude']['ratio'],
         'distance_ratio': combined_weight_config['distance']['ratio'],
         'pm10_ratio': combined_weight_config['eff_pm10']['ratio'],
         'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio'],
+        'abs_altitude_power': combined_weight_config['abs_altitude']['power'],
         'min_distance': 0, #distance_lower_bound,
         #'max_distance': distance_upper_bound,  # TODO delete
         'min_pm10': 0, #pm10_lower_bound,
@@ -85,7 +87,7 @@ def create_multiple_weights_propriety(greeter, combined_weight_config):
     #res = greeter.add_new_prop(parameters)
 
 
-def routing_single_weight_path(greeter, source, target, weight, algorithm, k=2, bool_map=False):
+def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True):
     start_time = time.time()
 
     greeter.drop_all_projections()
@@ -131,17 +133,18 @@ def main():
     greeter = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
     if routing_query['update_graph_properties']:
+        print("Updating graph properties as weights for path finding algorithm...")
         greeter.add_inverse_green_area()
         greeter.add_abs_altitude_diff()
         greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
 
     w = routing_query['weight']     # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff",
-                                    # "combined_property"
+                                    # "combined_weight"
 
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
 
-    result = routing_single_weight_path(
+    result = routing_path(
         greeter, routing_query['source_id'], routing_query['destination_id'],
         w, routing_query['algorithm'], routing_query['top_k'], True)
 

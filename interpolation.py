@@ -69,8 +69,7 @@ def main(config):
     raster_path = interpolation(greeter, measures_path, coords_path, config['raster_path'],
                                 config['idw']['power'], config['idw']['radius1'],
                                 config['idw']['radius2'])
-
-    print(f"Raster file created at {raster_path}")
+    print(f"Creating raster file {raster_path}...")
 
     greeter.close()
 
