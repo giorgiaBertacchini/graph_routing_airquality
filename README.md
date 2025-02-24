@@ -33,7 +33,7 @@ However, my graph did not include altitude difference information, so I added it
 ```cypher
 MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction) 
 WHERE s.id < d.id WITH r, s, d 
-SET r.altitude_diff = floor(rand() * 10 - 5)  // Set a random value between -10 and 10 meters  
+SET r.altitude_diff = floor(rand() * 20 - 10)  // Set a random value between -10 and 10 meters  
 
 WITH r, s, d, r.altitude_diff as altitude 
 MATCH (d)-[r2:ROUTE]->(s)   
@@ -44,7 +44,7 @@ RETURN r, r.altitude_diff
 ## Installation 
 For this project is used `Python 3.11`.
 
-For the graph database is used `Neo4j`. 
+For the graph database is used `Neo4j` and the libraries installed on the graph database are: `APOC` and `Graph Data Science`.
 Remember to configure the connection to the database in the `config.json` file, in the `neo4j_URL`, `neo4j_user`, and `neo4j_pwd` fields.
 
 The required packages are listed in the `requirements.txt` file.
@@ -52,6 +52,9 @@ The required packages are listed in the `requirements.txt` file.
 ``` bash
 pip install -r requirements.txt
 ```
+
+## Project Structure
+![Project Structure](images/project_structure.png)
 
 ## Usage
 ### Prepare the Data
