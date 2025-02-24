@@ -20,25 +20,6 @@ class App:
     def close(self):
         self.driver.close()
 
-    def shorter_path_metrics(self, pairs):
-        with self.driver.session() as session:
-            result = session.write_transaction(self._shorter_path_metrics, pairs)
-            return result
-
-    @staticmethod
-    def _shorter_path_metrics(tx, pairs):
-        """
-        Query to get the cost, danger and distance of the shortest path between the pairs of nodes
-        """
-        query = """ UNWIND %s as pairs
-                    CALL {
-                        MATCH (n:RoadJunction {id: pairs[0]})-[r:ROUTE]->(m:RoadJunction {id: pairs[1]})
-                        RETURN r ORDER BY r.distance ASC LIMIT 1
-                    }
-                    RETURN SUM(r.green_area) AS green_area, SUM(r.distance) AS distance""" % pairs
-        result = tx.run(query)
-        return result.values()
-
     def get_coordinates(self, final_path):
         with self.driver.session() as session:
             result = session.write_transaction(self._get_coordinates, final_path)
@@ -273,23 +254,6 @@ class App:
         result = tx.run(query)
         return result.values()
 
-    # TODO delete
-    def get_extreme_edge_properties(self):
-        with self.driver.session() as session:
-            result = session.write_transaction(self._get_extreme_edge_properties)
-            return result
-
-    @staticmethod
-    def _get_extreme_edge_properties(tx):
-        query = """
-        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        RETURN min(r.distance) as min_distance, max(r.distance) as max_distance, 
-        min(r.pm10) as min_pm10, max(r.pm10) as max_pm10,
-        min(r.inverse_green_area) as min_inv_green_area, max(r.inverse_green_area) as max_inv_green_area
-        """
-        result = tx.run(query)
-        return result.values()
-
     def add_combined_property(self, weight):
         with self.driver.session() as session:
             result = session.write_transaction(self._add_combined_property, weight)
@@ -332,20 +296,6 @@ class App:
         """
 
         result = tx.run(query, parameters=parameters)
-        return result.values()
-
-    def get_distances_and_effective_pm10(self):
-        with self.driver.session() as session:
-            result = session.write_transaction(self._get_distances_and_effective_pm10)
-            return result
-
-    @staticmethod
-    def _get_distances_and_effective_pm10(tx):
-        query = """
-        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
-        RETURN r.distance AS distance, r.effective_pm10 AS effective_pm10
-        """
-        result = tx.run(query)
         return result.values()
 
     def add_effective_pm10(self, c1=2000, c2=200):
