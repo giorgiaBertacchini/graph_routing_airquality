@@ -1,10 +1,9 @@
 import time
 import json
-import numpy as np
 from graph_bridge import App
 
 
-def coordinates_to_geojson(coordinates, weight, value, total_distance, total_green_area, avg_pm10, total_altitude_diff, index):
+def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_area, avg_pm10, tot_altitude_diff, index):
     """
     Convert a list of coordinates to a GeoJSON file
     """
@@ -19,10 +18,10 @@ def coordinates_to_geojson(coordinates, weight, value, total_distance, total_gre
                 },
                 "properties": {
                     "total_cost": value,
-                    "total_distance": total_distance,
-                    "total_green_area": total_green_area,
+                    "total_distance": tot_distance,
+                    "total_green_area": tot_green_area,
                     "avg_pm10": avg_pm10,
-                    "total_altitude_diff": total_altitude_diff
+                    "total_altitude_diff": tot_altitude_diff
                 }
             }
         ]
@@ -35,37 +34,12 @@ def coordinates_to_geojson(coordinates, weight, value, total_distance, total_gre
         print(f"GeoJSON file saved at {file_name}")
 
 
-def calculate_iqr_bounds(values):
-    Q1 = np.percentile(values, 25)
-    Q3 = np.percentile(values, 75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    return lower_bound, upper_bound
-
-
-def get_edge_props_bounds(greeter):
-    result = greeter.get_distances_and_effective_pm10()
-    distance_values = []
-    pm10_values = []
-
-    for record in result:
-        distance_values.append(record[0])
-        pm10_values.append(record[1])
-
-    distance_lower_bound, distance_upper_bound = calculate_iqr_bounds(distance_values)
-    pm10_lower_bound, pm10_upper_bound = calculate_iqr_bounds(pm10_values)
-
-    return distance_lower_bound, distance_upper_bound, pm10_lower_bound, pm10_upper_bound
-
-
 def create_multiple_weights_propriety(greeter, combined_weight_config):
-    # TODO to delete
-    #distance_lower_bound, distance_upper_bound, pm10_lower_bound, pm10_upper_bound = get_edge_props_bounds(greeter)
+    """
+    Create a combined weight property for the edges of the footway graph
+    """
 
-    # TODO test meglio in IQ o senza?
-
-    # Create a unique property for each edge with all the weights
+    # Get parameters for the combined weight
     parameters = {
         'distance_power': combined_weight_config['distance']['power'],
         'pm10_power': combined_weight_config['eff_pm10']['power'],
@@ -75,19 +49,19 @@ def create_multiple_weights_propriety(greeter, combined_weight_config):
         'pm10_ratio': combined_weight_config['eff_pm10']['ratio'],
         'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio'],
         'abs_altitude_power': combined_weight_config['abs_altitude']['power'],
-        'min_distance': 0, #distance_lower_bound,
-        #'max_distance': distance_upper_bound,  # TODO delete
-        'min_pm10': 0, #pm10_lower_bound,
-        #'max_pm10': pm10_upper_bound,  # TODO delete
-        'min_inv_green_area': 0, #min_inv_green_area,
+        'min_distance': 0,
+        'min_pm10': 0,
+        'min_inv_green_area': 0,
         'min_altitude_diff': 0
     }
 
-    result = greeter.add_combined_property(parameters)
-    #res = greeter.add_new_prop(parameters)
+    greeter.add_combined_property(parameters)
 
 
 def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True):
+    """
+    Find the path(s) between two nodes in the footway graph
+    """
     start_time = time.time()
 
     greeter.drop_all_projections()
@@ -138,8 +112,8 @@ def main():
         greeter.add_abs_altitude_diff()
         greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
 
-    w = routing_query['weight']     # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff",
-                                    # "combined_weight"
+    w = routing_query['weight']
+    # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff", "combined_weight"
 
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])

@@ -8,12 +8,18 @@ from export_to_csv import export_pm10_to_csv
 
 
 def validate_file_path(file_path):
+    """
+    Check if the file path is valid
+    """
     if file_path is None or not os.path.exists(file_path):
         print(f"File {file_path} does not exist, please provide a valid path in the config file.")
         sys.exit(2)
 
 
 def interpolation(greeter, measures_path, coords_path, raster_path, power=4, radius1=3000, radius2=3000):
+    """
+    Interpolate the sensor measures in a raster file
+    """
     df = pd.read_csv(coords_path)
 
     # Find min and max of latitude and longitude of the sensor nodes
