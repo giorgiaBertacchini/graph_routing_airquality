@@ -1,9 +1,11 @@
 import time
 import json
+import numpy as np
 from graph_bridge import App
 
 
-def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_area, avg_pm10, tot_altitude_diff, index):
+def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_area, avg_pm10, total_pm10_metre,
+                           total_inv_ga_metre, index):
     """
     Convert a list of coordinates to a GeoJSON file
     """
@@ -21,38 +23,59 @@ def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_a
                     "total_distance": tot_distance,
                     "total_green_area": tot_green_area,
                     "avg_pm10": avg_pm10,
-                    "total_altitude_diff": tot_altitude_diff
+                    "total_pm10_metre": total_pm10_metre,
+                    "total_inv_ga_metre": total_inv_ga_metre,
                 }
             }
         ]
     }
 
     # save the GeoJSON file
-    file_name = f"output/routing/path_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
+    file_name = f"output/routing/test_600_path_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
     with open(file_name, "w") as f:
         json.dump(geojson_data, f)
         print(f"GeoJSON file saved at {file_name}")
 
+'''
+def calculate_iqr_bounds(values):
+    Q1 = np.percentile(values, 25)
+    Q3 = np.percentile(values, 75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    return lower_bound, upper_bound
+
+
+def get_edge_props_bounds(greeter):
+    result = greeter.get_distances()
+    distance_values = result
+
+    distance_lower_bound, distance_upper_bound = calculate_iqr_bounds(distance_values)
+
+    return distance_lower_bound, distance_upper_bound
+'''
 
 def create_multiple_weights_propriety(greeter, combined_weight_config):
     """
     Create a combined weight property for the edges of the footway graph
     """
+    #_, max_distance = get_edge_props_bounds(greeter)
+    # TODO test 100
+    max_distance = 100
 
+    # TODO da ripulire
     # Get parameters for the combined weight
     parameters = {
         'distance_power': combined_weight_config['distance']['power'],
         'pm10_power': combined_weight_config['eff_pm10']['power'],
         'inv_green_area_power': combined_weight_config['inv_green_area']['power'],
-        'abs_altitude_ratio': combined_weight_config['abs_altitude']['ratio'],
         'distance_ratio': combined_weight_config['distance']['ratio'],
         'pm10_ratio': combined_weight_config['eff_pm10']['ratio'],
         'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio'],
-        'abs_altitude_power': combined_weight_config['abs_altitude']['power'],
         'min_distance': 0,
         'min_pm10': 0,
-        'min_inv_green_area': 0,
-        'min_altitude_diff': 0
+        'min_inv_ga': 0,
+        'max_distance': max_distance
     }
 
     greeter.add_combined_property(parameters)
@@ -82,7 +105,7 @@ def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True)
     path_data = [time.time() - start_time]
 
     for index, r in enumerate(paths):
-        path, totalCost, total_distance, total_green_area, avg_pm10, total_altitude_diff = r
+        path, totalCost, total_distance, total_green_area, avg_pm10, total_pm10_metre, total_inv_ga_metre = r
 
         # Remove duplicates from the path
         final_path = [path[0]] + [p for prev, p in zip(path, path[1:]) if p != prev]
@@ -94,11 +117,13 @@ def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True)
                 print('\nNo result for query')
             else:
                 # Save the path in a GeoJSON file
-                coordinates_to_geojson(coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, total_altitude_diff, index)
+                coordinates_to_geojson(
+                    coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, total_pm10_metre,
+                    total_inv_ga_metre, index)
 
         path_data.append({'hops': len(final_path), 'source': source, 'target': target, 'cost': totalCost,
                           'distance': total_distance, 'pm10': avg_pm10, 'green_area': total_green_area,
-                          'altitude_diff': total_altitude_diff})
+                          'pm10_metre': total_pm10_metre, 'inv_ga_metre': total_inv_ga_metre})
 
     return path_data
 
@@ -108,12 +133,11 @@ def main():
 
     if routing_query['update_graph_properties']:
         print("Updating graph properties as weights for path finding algorithm...")
-        greeter.add_inverse_green_area()
-        greeter.add_abs_altitude_diff()
-        greeter.add_effective_pm10(routing_query['effective_pm10']['c1'], routing_query['effective_pm10']['c2'])
+        greeter.add_inv_green_area_metre()
+        greeter.add_pm10_metre()
 
     w = routing_query['weight']
-    # "distance", "pm10", "effective_pm10, "inv_green_area", "abs_altitude_diff", "combined_weight"
+    # "distance", "pm10_metre, "inv_ga_metre", "combined_weight"
 
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
@@ -136,9 +160,11 @@ def main():
             print("number of hops: " + str(r['hops']))
             print("total cost: " + str(r['cost']))
             print("total distance: " + str(r['distance']))
-            print("total green area: " + str(r['green_area']))
             print("average pm10: " + str(r['pm10']))
-            print("total altitude difference: " + str(r['altitude_diff']))
+            print("total green area: " + str(r['green_area']))
+            print("total pm10 per metre: " + str(r['pm10_metre']))
+            print("total inverse green area per metre: " + str(r['inv_ga_metre']))
+            print("avg pm10 per metre: " + str(r['pm10_metre']/r['distance']))
 
     greeter.close()
     return 0

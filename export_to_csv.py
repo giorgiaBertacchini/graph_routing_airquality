@@ -33,11 +33,11 @@ def export_edges_to_csv(greeter, measures_path):
 
     variation = measures_path.split('_')[-1].split('.')[0]
 
-    file_path = f"output/exported_graph/edges_{variation}.csv"
+    file_path = f"output/exported_graph/edges_{variation}_multiplication.csv"
     with open(file_path, "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(["source", "target", "source_lon", "source_lat", "target_lon", "target_lat",
-                         "name", "altitude", "distance", "green_area", "pm10"])
+        writer.writerow(["source", "target", "source_lon", "source_lat", "target_lon", "target_lat", "name",
+                         "distance", "green_area", "pm10", "pm10_metre", "inv_ga_metre", "combined_weight"])
         for record in result:
             writer.writerow(list(record))
 
@@ -67,8 +67,8 @@ if __name__ == "__main__":
     greeter_app = App(config['neo4j_URL'], config['neo4j_user'], config['neo4j_pwd'])
 
     try:
-        export_edges_to_csv(greeter_app)
-        export_road_junctions_to_csv(greeter_app)
+        export_edges_to_csv(greeter_app, config['measures_path'])
+        #export_road_junctions_to_csv(greeter_app)
     except Exception as e:
         print(e)
         sys.exit(1)

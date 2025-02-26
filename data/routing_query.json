@@ -1,31 +1,23 @@
 {
   "path_file_suffix": "smoothed",
-  "update_graph_properties": false,
+  "update_graph_properties": true,
   "source_id": "301244414",
   "destination_id": "2054319700",
   "algorithm": "dijkstra",
   "top_k": 3,
-  "weight": "abs_altitude_diff",
-  "effective_pm10": {
-    "c1": 2000,
-    "c2": 200
-  },
+  "weight": "combined_weight",
   "combined_weight": {
     "distance": {
       "power": 1,
-      "ratio": 0.4
+      "ratio": 0
     },
     "eff_pm10": {
       "power": 1,
-      "ratio": 0.4
+      "ratio": 0.7
     },
     "inv_green_area": {
       "power": 1,
-      "ratio": 0.1
-    },
-    "abs_altitude": {
-      "power": 1,
-      "ratio": 0.1
+      "ratio": 0.3
     }
   }
 }

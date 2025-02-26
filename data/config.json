@@ -6,8 +6,8 @@
   "neo4j_pwd": "password",
   "idw": {
     "power": 4,
-    "radius1": 3000,
-    "radius2": 3000
+    "radius1": 4000,
+    "radius2": 4000
   },
   "air_quality_in_footpath": {
     "buffer_size": 3

@@ -25,12 +25,10 @@ def sample_with_window(raster, x_vals, y_vals, buffer_size=3):
             np.arange(y - half_w, y + half_w + 1)
         )
 
-        # TODO valutare se usare una gaussiana o altro
         # Extract the values from the raster using a bilinear interpolation (order=1)
         values = map_coordinates(raster, [y_grid.ravel(), x_grid.ravel()], order=1)
 
         # Mean value of the window around a single segment point
-        # TODO valutare altro oltre a mean
         sampled_values.append(np.mean(values))
     return np.array(sampled_values)
 

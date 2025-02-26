@@ -13,30 +13,8 @@ print(df['VALORE'].describe())
 
 print("\n-----------------------------------")
 
-"""
-df = pd.read_csv("./data/sensor_measurements_35pc.csv", header=0)
-print("\nFile name: sensor_measurements_35pc.csv")
-print("Describe VALUE:")
-print(df['VALUE'].describe())
-
-
-variations = (df['VALUE'].values[:, None] - df['VALUE'].values) / df['VALUE'].values * 100
-np.fill_diagonal(variations, np.nan)
-print("\nMax variation: ", df.std())
-
-print("\n-----------------------------------")
-
-df = pd.read_csv("./data/sensor_measurements_75pc.csv", header=0)
-print("\nFile name: sensor_measurements_75pc.csv")
-print("Describe VALUE:")
-print(df['VALUE'].describe())
-
-variations = (df['VALUE'].values[:, None] - df['VALUE'].values) / df['VALUE'].values * 100
-np.fill_diagonal(variations, np.nan)
-print("\nMax variation: ", np.nanmax(variations))
-"""
-
-original_values = np.array([13, 31, 16, 43, 18, 49, 50, 51, 20, 25, 52, 14])
+original_values = np.array([19,38,20,37,21,41,41,43,23,27,38,19,21,22,37,36,24,36,36,23,25])
+print(np.mean(original_values))
 
 
 def generate_value(file, new_std):
