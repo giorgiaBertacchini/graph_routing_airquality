@@ -320,7 +320,7 @@ class App:
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
         WITH r, s, d,
-            (r.pm10) / (r.distance) AS pm10_per_metre
+            (r.pm10) * (r.distance) AS pm10_per_metre
         
         SET r.pm10_metre = pm10_per_metre
     
@@ -345,7 +345,7 @@ class App:
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
         WHERE s.id < d.id
         WITH r, s, d,
-            1 / ((r.green_area + 0.0000001) * r.distance) AS inverse_green_area_metre
+            r.distance / ((r.green_area/100) + 1)  AS inverse_green_area_metre
         
         SET r.inv_ga_metre = inverse_green_area_metre
     

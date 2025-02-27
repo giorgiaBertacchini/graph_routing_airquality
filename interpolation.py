@@ -49,15 +49,6 @@ def interpolation(greeter, measures_path, coords_path, raster_path, power=4, rad
               algorithm=f"invdist:power={power}:radius1={radius1}:radius2={radius2}",
               outputBounds=[x_min, y_min, x_max, y_max])
 
-    """# If you want change the resolution of the output raster:
-    resolution_offset = 250  # Resolution offset
-    x_resolution = int((xmax - xmin) * resolution_offset)
-    y_resolution = int((ymax - ymin) * resolution_offset)
-
-    res = gdal.Grid("./output/low_res_idw_" + variation + ".tif", f"./data/sensor_meas_" + variation + ".vrt",
-                    algorithm="invdist:power=4:radius1=3000:radius2=3000", outputBounds=[xmin, ymin, xmax, ymax], width=x_resolution, height=y_resolution)
-    """
-
     return raster_path
 
 
