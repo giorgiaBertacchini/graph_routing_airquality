@@ -122,7 +122,7 @@ class App:
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
-        avg(r.pm10), sum(r.abs_altitude_diff) as total_altitude_diff
+        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property)
@@ -161,7 +161,7 @@ class App:
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
-        avg(r.pm10), sum(r.abs_altitude_diff) as total_altitude_diff
+        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property, k=k)
@@ -264,7 +264,38 @@ class App:
     def _get_distances(tx):
         query = """
         MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
         RETURN r.distance
+        """
+        result = tx.run(query)
+        return result.values()
+
+    def get_pm10_route(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._get_pm10_route)
+            return result
+
+    @staticmethod
+    def _get_pm10_route(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
+        RETURN r.pm10_metre
+        """
+        result = tx.run(query)
+        return result.values()
+
+    def get_inv_ga_route(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._get_inv_ga_route)
+            return result
+
+    @staticmethod
+    def _get_inv_ga_route(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
+        RETURN r.inv_ga_metre
         """
         result = tx.run(query)
         return result.values()
@@ -295,7 +326,7 @@ class App:
                         
         WITH 
             r, s, d,
-            (($pm10_ratio * normalized_pm10) + ($inv_green_area_ratio * normalized_inv_ga)) AS weighted_average
+           ($pm10_ratio * normalized_pm10) + ($inv_green_area_ratio * normalized_inv_ga) AS weighted_average
         
         SET r.combined_weight = weighted_average
         

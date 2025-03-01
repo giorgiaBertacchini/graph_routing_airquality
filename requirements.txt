@@ -1,8 +1,5 @@
-#conda install conda-forge::gdal
 gdal
 pandas~=2.2.3
-
-# pip install neo4j
 neo4j~=5.28.0
 scipy~=1.15.1
 numpy~=2.2.2

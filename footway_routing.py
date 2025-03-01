@@ -31,51 +31,21 @@ def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_a
     }
 
     # save the GeoJSON file
-    file_name = f"output/routing/test_600_path_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
+    file_name = f"output/routing/test_d_path_top_k_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
     with open(file_name, "w") as f:
         json.dump(geojson_data, f)
         print(f"GeoJSON file saved at {file_name}")
 
-'''
-def calculate_iqr_bounds(values):
-    Q1 = np.percentile(values, 25)
-    Q3 = np.percentile(values, 75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    return lower_bound, upper_bound
-
-
-def get_edge_props_bounds(greeter):
-    result = greeter.get_distances()
-    distance_values = result
-
-    distance_lower_bound, distance_upper_bound = calculate_iqr_bounds(distance_values)
-
-    return distance_lower_bound, distance_upper_bound
-'''
 
 def create_multiple_weights_propriety(greeter, combined_weight_config):
     """
     Create a combined weight property for the edges of the footway graph
     """
-    #_, max_distance = get_edge_props_bounds(greeter)
-    # TODO test 100
-    max_distance = 100
 
-    # TODO da ripulire
     # Get parameters for the combined weight
     parameters = {
-        'distance_power': combined_weight_config['distance']['power'],
-        'pm10_power': combined_weight_config['eff_pm10']['power'],
-        'inv_green_area_power': combined_weight_config['inv_green_area']['power'],
-        'distance_ratio': combined_weight_config['distance']['ratio'],
         'pm10_ratio': combined_weight_config['eff_pm10']['ratio'],
-        'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio'],
-        'min_distance': 0,
-        'min_pm10': 0,
-        'min_inv_ga': 0,
-        'max_distance': max_distance
+        'inv_green_area_ratio': combined_weight_config['inv_green_area']['ratio']
     }
 
     greeter.add_combined_property(parameters)
@@ -136,8 +106,7 @@ def main():
         greeter.add_inv_green_area_metre()
         greeter.add_pm10_metre()
 
-    w = routing_query['weight']
-    # "distance", "pm10_metre, "inv_ga_metre", "combined_weight"
+    w = routing_query['weight']  # "distance", "pm10_metre, "inv_ga_metre", "combined_weight"
 
     if w == 'combined_weight':
         create_multiple_weights_propriety(greeter, routing_query['combined_weight'])
