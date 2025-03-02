@@ -26,25 +26,10 @@ To better manage the communication with Neo4j, the `graph_bridge.py` file contai
 
 To have a visual representation of the graph and the outputs, this project create also files designated for QGIS application.
 
-## Adding Altitude Difference to the Graph with Cypher
-This project was designed to handle optimal route queries based on various weights: distance, PM10, effective PM10, green area, and altitude difference. 
-However, my graph did not include altitude difference information, so I added it using the following Cypher query.
-
-```cypher
-MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction) 
-WHERE s.id < d.id WITH r, s, d 
-SET r.altitude_diff = floor(rand() * 20 - 10)  // Set a random value between -10 and 10 meters  
-
-WITH r, s, d, r.altitude_diff as altitude 
-MATCH (d)-[r2:ROUTE]->(s)   
-SET r2.altitude_diff = altitude   // Set the same also in the opposite direction  
-RETURN r, r.altitude_diff 
-```
-
 ## Installation 
 For this project is used `Python 3.11`.
 
-For the graph database is used `Neo4j` and the libraries installed on the graph database are: `APOC` and `Graph Data Science`.
+For the graph database is used `Neo4j` and the library installed on the graph database is `Graph Data Science`.
 Remember to configure the connection to the database in the `config.json` file, in the `neo4j_URL`, `neo4j_user`, and `neo4j_pwd` fields.
 
 The required packages are listed in the `requirements.txt` file.
@@ -90,7 +75,7 @@ To obtain a more aggregated result, it calculates the average PM10 values within
 It responds to the parameters set in the `routing_config.json` file, containing the routing parameters, such as:
 * `source_id` and `destination_id`: the IDs of the starting and ending route junctions.
 * `algorithm`: the pathfinding algorithm to use (Dijkstra, A*, or Yen).
-* `weight`: the weight to minimize in the path search (PM10, distance, effective PM10, green_area, altitude difference or a combined weight).
+* `weight`: the weight to minimize in the path search (distance, route PM10, route green area or a combined weight).
 * `top_k`: the number of paths to return in the case of the Yen algorithm.
 * `combined_weight`: the parameter to balance the weight between PM10 and distance in the case of the combined weight.
 
@@ -99,13 +84,11 @@ You can find details about the path finding algorithms in the [Neo4j documentati
 The script generates for each path found a GeoJSON file that can be loaded in QGIS to visualize the path on the map, and save the path in the `routing` folder.
 
 ### Weights
-The `weight` parameter can be set to:
-* `pm10`: to minimize the average PM10 value along the path.
+The `weight` parameter can be:
 * `distance`: to minimize the distance.
-* `effective_pm10`: to minimize the effective PM10 value, a value more representative of the air quality along the path, that considers the distance and the PM10 value.
-* `inverse_green_area`: to maximize the green area along the path.
-* `abs_altitude_diff`: to minimize the altitude difference along the path.
-* `combined_weight`: to minimize a weighted normalized average of distance and PM10, where the weight is set in the `combined_weight` parameter.
+* `route pm10`: to minimize total PM10 exposure, a value more representative of the air quality along the path, that considers the distance and the PM10 value.
+* `route inverse green area`: to maximize the green area along the path.
+* `combined weight`: to minimize a weighted normalized average route PM10 and route inverse green area, where the weight is set in the `combined_weight` parameter.
 
 
 ## Conclusion
