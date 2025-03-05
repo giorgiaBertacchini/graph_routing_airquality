@@ -5,7 +5,7 @@ from graph_bridge import App
 
 
 def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_area, avg_pm10, total_pm10_metre,
-                           total_inv_ga_metre, index):
+                           total_inv_ga_metre, total_green_area_distance, index):
     """
     Convert a list of coordinates to a GeoJSON file
     """
@@ -25,13 +25,15 @@ def coordinates_to_geojson(coordinates, weight, value, tot_distance, tot_green_a
                     "avg_pm10": avg_pm10,
                     "total_pm10_metre": total_pm10_metre,
                     "total_inv_ga_metre": total_inv_ga_metre,
+                    "avg_pm10_metre": total_pm10_metre / tot_distance,
+                    "total_ga_distance": total_green_area_distance
                 }
             }
         ]
     }
 
     # save the GeoJSON file
-    file_name = f"output/routing/test_d_path_top_k_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
+    file_name = f"output/routing/path_{weight}_{index}_{routing_query['path_file_suffix']}.geojson"
     with open(file_name, "w") as f:
         json.dump(geojson_data, f)
         print(f"GeoJSON file saved at {file_name}")
@@ -75,7 +77,7 @@ def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True)
     path_data = [time.time() - start_time]
 
     for index, r in enumerate(paths):
-        path, totalCost, total_distance, total_green_area, avg_pm10, total_pm10_metre, total_inv_ga_metre = r
+        path, totalCost, total_distance, total_green_area, avg_pm10, total_pm10_metre, total_inv_ga_metre, total_green_area_distance = r
 
         # Remove duplicates from the path
         final_path = [path[0]] + [p for prev, p in zip(path, path[1:]) if p != prev]
@@ -89,11 +91,12 @@ def routing_path(greeter, source, target, weight, algorithm, k=2, bool_map=True)
                 # Save the path in a GeoJSON file
                 coordinates_to_geojson(
                     coordinates[0][0], weight, totalCost, total_distance, total_green_area, avg_pm10, total_pm10_metre,
-                    total_inv_ga_metre, index)
+                    total_inv_ga_metre, total_green_area_distance, index)
 
         path_data.append({'hops': len(final_path), 'source': source, 'target': target, 'cost': totalCost,
                           'distance': total_distance, 'pm10': avg_pm10, 'green_area': total_green_area,
-                          'pm10_metre': total_pm10_metre, 'inv_ga_metre': total_inv_ga_metre})
+                          'pm10_metre': total_pm10_metre, 'inv_ga_metre': total_inv_ga_metre,
+                          'green_area_distance': total_green_area_distance})
 
     return path_data
 
@@ -105,6 +108,7 @@ def main():
         print("Updating graph properties as weights for path finding algorithm...")
         greeter.add_inv_green_area_metre()
         greeter.add_pm10_metre()
+        #greeter.add_green_area_distance()  # only for results visualization
 
     w = routing_query['weight']  # "distance", "pm10_metre, "inv_ga_metre", "combined_weight"
 
@@ -134,6 +138,7 @@ def main():
             print("total pm10 per metre: " + str(r['pm10_metre']))
             print("total inverse green area per metre: " + str(r['inv_ga_metre']))
             print("avg pm10 per metre: " + str(r['pm10_metre']/r['distance']))
+            print("total green area distance: " + str(r['green_area_distance']))
 
     greeter.close()
     return 0

@@ -90,6 +90,10 @@ The `weight` parameter can be:
 * `route inverse green area`: to maximize the green area along the path.
 * `combined weight`: to minimize a weighted normalized average route PM10 and route inverse green area, where the weight is set in the `combined_weight` parameter.
 
+### Possible Modifications  
+To experiment with different criteria for path finding, `inv_ga_metre` can be replaced with `green_area_distance` as the algorithm weight. 
+Currently, green_area_distance is only used to display a more representative value of the algorithm's results. 
+However, it could be used as the primary weight in the pathfinding algorithm.
 
 ## Conclusion
 This project is designed to be highly flexible and customizable, allowing it to adapt to any use case or future needs. 

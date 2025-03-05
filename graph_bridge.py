@@ -82,7 +82,8 @@ class App:
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
-        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre
+        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre, 
+        sum(r.green_area_distance) as total_green_area_distance
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property)
@@ -122,7 +123,8 @@ class App:
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
-        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre
+        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre,
+        sum(r.green_area_distance) as total_green_area_distance
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property)
@@ -161,7 +163,8 @@ class App:
         unwind relationships(p) as n with startNode(n).id as start_node,endNode(n).id as end_node,nodes_path,totalCost
         match (fn:RoadJunction{id:start_node})-[r:ROUTE]->(fn2:RoadJunction{id:end_node})
         return nodes_path, totalCost, sum(r.distance) as total_distance, sum(r.green_area) as total_green_area, 
-        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre
+        avg(r.pm10), sum(r.pm10_metre) as total_pm10_metre, sum(r.inv_ga_metre) as total_inv_ga_metre,
+        sum(r.green_area_distance) as total_green_area_distance
         """
 
         result = tx.run(query, source=source, target=target, weight_property=weight_property, k=k)
@@ -385,6 +388,31 @@ class App:
         SET r2.inv_ga_metre = inverse_green_area_metre
     
         RETURN r, r.inv_ga_metre
+        """
+
+        result = tx.run(query)
+        return result.values()
+
+    def add_green_area_distance(self):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._add_green_area_distance)
+            return result
+
+    @staticmethod
+    def _add_green_area_distance(tx):
+        query = """
+        MATCH (s:RoadJunction)-[r:ROUTE]->(d:RoadJunction)
+        WHERE s.id < d.id
+        WITH r, s, d,
+            r.distance * ((r.green_area+0.0)/100) AS green_area_distance
+        
+        SET r.green_area_distance = green_area_distance
+    
+        WITH r, s, d, green_area_distance
+        MATCH (d)-[r2:ROUTE]->(s)  
+        SET r2.green_area_distance = green_area_distance
+    
+        RETURN r, r.green_area_distance
         """
 
         result = tx.run(query)
